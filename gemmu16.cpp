@@ -62,9 +62,9 @@ inline void LoopThree(int m, int n, int k, uint8_t *A, int ldA, uint16_t *Bpacke
     for (int i = 0; i < m; i += MC) {
         int ib = std::min(MC, m - i);
         pack_K<uint8_t, uint16_t, MR, 2, true>(k, ib, &alpha(i, 0), ldA, Apacked);
-        showMatrix(2, ib*k/2, Apacked, 1, "Apack");
-        int kk = (k + 3) & -4;
-        LoopTwo<NR>(ib, n, k, Apacked, Bpacked, &gamma(i, 0), ldC);
+        showMatrix(2,((k + 1) & (-2)) * ib /2 , Apacked, 1, "Apack");
+        int kk = (k + 1) & -2;
+        LoopTwo<NR>(ib, n, kk, Apacked, Bpacked, &gamma(i, 0), ldC);
     }
 }
 

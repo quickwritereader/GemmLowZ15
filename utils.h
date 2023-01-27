@@ -43,20 +43,20 @@ struct conv<int8_t> {
 };
 
 template <bool LastIndexFast = ISLASTINDEX_FAST>
-int64_t determineLd(int m, int n, int ld) {
+int64_t determineLd(int m, int n, int ld, bool trans=false) {
     if (LastIndexFast) {
-        return std::max(n, ld);
+        return trans?std::max(m, ld)  :std::max(n, ld);
     } else {
-        return std::max(m, ld);
+        return trans?std::max(n, ld) :std::max(m, ld);
     }
 }
 
 template <bool LastIndexFast = ISLASTINDEX_FAST>
-int64_t determineSize(int m, int n, int ld) {
+int64_t determineSize(int m, int n, int ld, bool trans=false) {
     if (LastIndexFast) {
-        return std::max(n, ld) * m;
+        return trans?(std::max(m, ld) * n) :(std::max(n, ld) * m);
     } else {
-        return std::max(m, ld) * n;
+        return trans?(std::max(n, ld) * m):(std::max(m, ld) * n);
     }
 }
 
@@ -65,8 +65,8 @@ template <typename T, bool LastIndexFast = ISLASTINDEX_FAST,
 struct MatrixPtr {
     MatrixPtr(T *a, int64_t ld) : a{a}, ld{ld} {}
 
-    MatrixPtr(T *a, int64_t m, int64_t n, int64_t ld) : a{a} {
-        this->ld = determineLd<LastIndexFast>(m, n, ld);
+    MatrixPtr(T *a, int64_t m, int64_t n, int64_t ld, bool trans=false) : a{a} {
+        this->ld = determineLd<LastIndexFast>(m, n, ld, trans);
     }
 
     T *ptr(int64_t i, int64_t j) {
@@ -207,11 +207,11 @@ void linMatrix(int m, int n, T *ap, int lda, T val) {
         }
 }
 template <typename T>
-void showMatrix(int64_t R, int64_t C, const T *M, int64_t LD,
-                const char *name = "") {
+void showMatrix(int64_t R, int64_t C, const T *M, int64_t LD, 
+                const char *name = "",bool trans = false) {
 #if defined(SHOW_MATRIX)
 
-    auto Mptr = MatrixPtr<const T>{M, R, C, LD};
+    auto Mptr = MatrixPtr<const T>{M, R, C, LD, trans};
 
     std::cout << "\n#----------\n" << name << "=np.array([\n";
     for (int r = r; r < R; r++) {

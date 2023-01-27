@@ -5,16 +5,16 @@
 #include <memory>
 //#include <pack.hpp>
 #include <test_reference.h>
-void MyGemm(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
+void MyGemm(bool transA, bool transB, int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
             uint32_t *C, int ldC);
 
 extern double FLA_Clock();
 
-double validate(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
+double validate(bool transA, bool transB, int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
                 int32_t *C, int ldC) {
     test_params p = {};
-    p.transA = 'n';
-    p.transB = 'n';
+    p.transA = transA?'t':'n';
+    p.transB = transB?'t':'n';
     p.M = m;
     p.K = k;
     p.N = n;
@@ -47,20 +47,23 @@ int main() {
     int nrepeats =  4;
     TestSeed seed{};
     int m, n, k;
-    std::cout << "seed " << seed << " MR: " << MR << " NR: " << NR << std::endl;
+    bool trans[]={false,true};
+    for(auto transA : trans)
+       for(auto transB : trans) {
+    std::cout << "seed " << seed << " MR: " << MR << " NR: " << NR << " -- transA: "<<transA<<" transB: "<<transB<<std::endl;
     printf("%%          time       G_OPS     diff \n");
     for (int size = last; size >= first; size -= inc) {
         /* we will only time cases where all three matrices are square */
         m = n = k = size;
         // m=1;
         // n=1;
-        int ldA = determineLd(m, k, size);
-        int ldB = determineLd(k, n, size);
+        int ldA = determineLd(m, k, size, transA);
+        int ldB = determineLd(k, n, size, transB);
         int ldC = determineLd(m, n, size);
         // std::cout<<m<<","<<n<<","<<ldC<<","<<determineSize(m,n,ldC)<<std::endl;
 
-        std::unique_ptr<uint8_t[]> A(new uint8_t[determineSize(m, k, ldA)]);
-        std::unique_ptr<uint8_t[]> B(new uint8_t[determineSize(k, n, ldB)]);
+        std::unique_ptr<uint8_t[]> A(new uint8_t[determineSize(m, k, ldA,transA)]);
+        std::unique_ptr<uint8_t[]> B(new uint8_t[determineSize(k, n, ldB, transB)]);
         std::unique_ptr<uint32_t[]> C(new uint32_t[determineSize(m, n, ldC)]);
 
 #if !defined(LOW_0_127)
@@ -90,19 +93,21 @@ int main() {
         for (irep = 0; irep < nrepeats; irep++) {
             fillMatrix(m, n, C.get(), ldC, (uint32_t)0);
             auto dtime = FLA_Clock();
-            MyGemm(m, n, k, A.get(), ldA, B.get(), ldB, C.get(), ldC);
+            MyGemm(transA,transB, m, n, k, A.get(), ldA, B.get(), ldB, C.get(), ldC);
             dtime = FLA_Clock() - dtime;
             if (irep == 0)
                 dtime_best = dtime;
             else
                 dtime_best = (dtime < dtime_best ? dtime : dtime_best);
         }
-        auto diff = validate(m, n, k, A.get(), ldA, B.get(), ldB,
+        auto diff = validate(transA, transB, m, n, k, A.get(), ldA, B.get(), ldB,
                              (int32_t *)C.get(), ldC);
         showMatrix(m, n, C.get(), ldC, "C");
         printf("%5d %8.4le %8.4le %8.4le  \n", n, dtime_best, gops / dtime_best,
                diff);
         // std::cout<<"//End"<<std::endl;
     }
+
+       }
     return 0;
 }

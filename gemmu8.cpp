@@ -5,70 +5,72 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
-#include <pack_k4.hpp>
+#include <pack.hpp>
 
 // constexpr int MR=12;
 // constexpr int NR=4;
-constexpr int MC =  48 * 8  *4;
-constexpr int KC = 164 * 4;
+constexpr int MC =  48 * 8  *2;
+constexpr int KC = 164 * 4 *2;
 constexpr int NC = 2000;
-void LoopFive(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
+void LoopFive(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
               uint32_t *C, int ldC);
-void LoopFour(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
+void LoopFour(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
               uint32_t *C, int ldC, uint8_t *Apacked, uint8_t *Bpacked);
-void LoopThree(int m, int n, int k, uint8_t *A, int ldA, uint8_t *Bpacked,
+void LoopThree(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *Bpacked,
                uint32_t *C, int ldC, uint8_t *Apacked);
 template <int COLS>
 void LoopTwo(int m, int n, int k, uint8_t *Apacked, uint8_t *Bpacked, uint32_t *C,
              int ldC);
 template <int ROWS, int COLS>
-void LoopOne(int m, int k, uint8_t *Apacked, uint8_t *MicroPanelB, uint32_t *C,
+void LoopOne(int m, int k, uint8_t *Apacked, uint8_t *Bpacked, uint32_t *C,
              int ldC);
 
-void MyGemm(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
+void MyGemm(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *B, int ldB,
             uint32_t *C, int ldC) {
-    LoopFive(m, n, k, A, ldA, B, ldB, C, ldC);
+    LoopFive(transA, transB, m, n, k, A, ldA, B, ldB, C, ldC);
 }
 
-inline void LoopFive(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B,
+inline void LoopFive(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *B,
                      int ldB, uint32_t *C, int ldC) {
     std::unique_ptr<uint8_t[]> Bpack(new uint8_t[KC * NC]);
     std::unique_ptr<uint8_t[]> Apack(new uint8_t[MC * KC]);
     for (int j = 0; j < n; j += NC) {
-        int jb = std::min(NC, n - j); /* Last loop may not involve a full block */
-        LoopFour(m, jb, k, A, ldA, &beta(0, j), ldB, &gamma(0, j), ldC,
+        int jb =
+            std::min(NC, n - j); /* Last loop may not involve a full block */
+        LoopFour(transA, transB,m, jb, k, A, ldA, transB?&beta(j, 0) :&beta(0, j), ldB, &gamma(0, j), ldC,
                  Apack.get(), Bpack.get());
     }
 }
 
-inline void LoopFour(int m, int n, int k, uint8_t *A, int ldA, uint8_t *B,
+inline void LoopFour(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *B,
                      int ldB, uint32_t *C, int ldC, uint8_t *Apacked,
                      uint8_t *Bpacked) {
     constexpr int VLEN = VecType<uint32_t>::size();
     for (int p = 0; p < k; p += KC) {
         int pb = std::min(KC, k - p);
-        /* Last loop may not involve a full block */
-        // PackBlockB_KCxNC<uint8_t,NR>(pb,n,&beta( p, 0 ),ldB,Bpacked);
-        pack_K4<uint8_t, NR, false>(pb, n, &beta(p, 0), ldB, Bpacked);
+        if(transB){
+           pack_K<uint8_t, uint8_t, NR, 4, true>(pb, n, &beta(0, p), ldB, Bpacked);
+        }else{
+           pack_K<uint8_t, uint8_t, NR, 4, false>(pb, n, &beta(p, 0), ldB, Bpacked);
+        } 
         showMatrix(4, ((pb + 3) & (-4)) * n / 4, Bpacked, 1, "Bpack");
-        LoopThree(m, n, pb, &alpha(0, p), ldA, Bpacked, C, ldC, Apacked);
+        LoopThree(transA, transB, m, n, pb, transA?&alpha(p, 0) : &alpha(0, p), ldA, Bpacked, C, ldC, Apacked);
     }
 }
-
-inline void LoopThree(int m, int n, int k, uint8_t *A, int ldA, uint8_t *Bpacked,
+inline void LoopThree(bool transA, bool transB,int m, int n, int k, uint8_t *A, int ldA, uint8_t *Bpacked,
                       uint32_t *C, int ldC, uint8_t *Apacked) {
     constexpr int VLEN = VecType<uint32_t>::size();
     for (int i = 0; i < m; i += MC) {
         int ib =
             std::min(MC, m - i); /* Last loop may not involve a full block */
-        pack_K4<uint8_t, MR, true>(k, ib, &alpha(i, 0), ldA, Apacked);
-        // PackBlockA_MCxKC<uint8_t,MR>(ib,k,&alpha( i, 0 ),ldA, Apacked);
+        if(transA){
+            pack_K<uint8_t, uint8_t, MR, 4, false>(k, ib, &alpha(0, i), ldA, Apacked);
+        }else{
+            pack_K<uint8_t, uint8_t, MR, 4, true>(k, ib, &alpha(i, 0), ldA, Apacked);
+        }
+        
         showMatrix(((k + 3) & (-4)) * ib / 4, 4, Apacked, 1, "Apack");
-        // PackBlockA_MCxKC( ib, k, &alpha( i, 0 ), ldA, Apacked );
-        // k will be divisible 4 after pack, N will be divisble NR, m will be
-        // divisble MR and additional values will be zeroed
         int kk = (k + 3) & -4;
-        // std::cout<<__LINE__<<") LOOP TWO CALL "<<i<<", "<<m<<std::endl;
         LoopTwo<NR>(ib, n, kk, Apacked, Bpacked, &gamma(i, 0), ldC);
     }
 }

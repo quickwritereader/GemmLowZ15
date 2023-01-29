@@ -13,18 +13,19 @@
 #include <random>
 #include <utility>
 
+using dim_t = int;
 //#define LAST_INDEX_FAST 1
 //#define SHOW_MATRIX
 #if defined(LAST_INDEX_FAST)
 constexpr bool ISLASTINDEX_FAST = true;
-#define alpha(i, j) A[(i)*ldA + (j)]  // map alpha( i,j ) to array A
-#define beta(i, j) B[(i)*ldB + (j)]   // map beta( i,j ) to array B
-#define gamma(i, j) C[(i)*ldC + (j)]  // map gamma( i,j ) to array C
+#define aPtr(i, j) A[(i)*ldA + (j)]  // map aPtr( i,j ) to array A
+#define bPtr(i, j) B[(i)*ldB + (j)]   // map bPtr( i,j ) to array B
+#define gPtr(i, j) C[(i)*ldC + (j)]  // map gPtr( i,j ) to array C
 #else
 constexpr bool ISLASTINDEX_FAST = false;
-#define alpha(i, j) A[(j)*ldA + (i)]  // map alpha( i,j ) to array A
-#define beta(i, j) B[(j)*ldB + (i)]   // map beta( i,j ) to array B
-#define gamma(i, j) C[(j)*ldC + (i)]  // map gamma( i,j ) to array C
+#define aPtr(i, j) A[(j)*ldA + (i)]  // map aPtr( i,j ) to array A
+#define bPtr(i, j) B[(j)*ldB + (i)]   // map bPtr( i,j ) to array B
+#define gPtr(i, j) C[(j)*ldC + (i)]  // map gPtr( i,j ) to array C
 #endif
 
 template <typename T>
@@ -315,7 +316,9 @@ struct VecType {
 
 using vuint8 = typename VecType<uint8_t>::Type;
 using vuint16 = typename VecType<uint16_t>::Type;
+using vint16 = typename VecType<int16_t>::Type;
 using vuint32 = typename VecType<uint32_t>::Type;
+using vint32 = typename VecType<int32_t>::Type;
 
 template <typename T>
 std::ostream &operator<<(std::ostream &stream, const VecType<T> &vec) {
@@ -387,17 +390,17 @@ inline vuint32 multiplySum4Low(VecType<uint8_t> va, VecType<uint8_t> vb) {
 }
 
 
-inline VecType<uint32_t> multiplyAdd(VecType<uint16_t> va, VecType<uint16_t> vb , VecType<uint32_t> vc) {
+inline VecType<int32_t> multiplyAdd(VecType<int16_t> va, VecType<int16_t> vb , VecType<int32_t> vc) {
 //  std::cout<<"-----\n"; 
 //      std::cout<<va<<std::endl;
 //      std::cout<<vb<<std::endl;
 //      std::cout<<vc<<std::endl;
-    const vuint16 a = va;
-    const vuint16 b = vb;
-    vuint32 c = vc;
+    const vint16 a = va;
+    const vint16 b = vb;
+    vint32 c = vc;
     c = vec_moadd(a, b, c);
     c = vec_meadd(a, b, c); 
 // std::cout<<"=\n"; 
-    // std::cout<<VecType<uint32_t>{c}<<std::endl;
-    return VecType<uint32_t>{c};
+    // std::cout<<VecType<int32_t>{c}<<std::endl;
+    return VecType<int32_t>{c};
 }

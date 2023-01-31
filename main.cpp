@@ -54,8 +54,8 @@ int main() {
     test_seed_t seed {};
     dim_t m, n, k;
     char trans[] = {'n', 't'};
-    float alpha = 1.0;
-    float beta = 0.0;
+    float alpha = 1.5;
+    float beta = 2.0;
     const char *offsetC = " ";
     const int32_t *co = nullptr;
     const uint8_t *ao = nullptr;

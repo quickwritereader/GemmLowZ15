@@ -21,7 +21,7 @@ constexpr int kernelType(int ROWS, int COLS, int elementSize) {
 template <int ROWS, int COLS, typename T, typename DT>
 inline typename std::enable_if<kernelType(ROWS, COLS, sizeof(T)) == 1,
         void>::type
-gbp(int k, float alpha, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
+gbp(int k, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
     using vType = typename vec_type_t<T>::Type;
     using elType = typename vec_type_t<T>::ElementType;
     constexpr int VLEN = vec_type_t<T>::size();
@@ -76,9 +76,7 @@ gbp(int k, float alpha, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
         MT_A += 4 * ROWS;
         MT_B += 4 * COLS;
     }
-
-    bool fastpath = (alpha == 1.0);
-    if (fastpath) {
+ 
         asm("");
         for (int j = 0; j < COLS; j++) {
             for (int i = 0; i < ROWS / VLEN; i++) {
@@ -86,24 +84,13 @@ gbp(int k, float alpha, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
                 *C_ij += (vType)Caux[i][j];
             }
         }
-    } else {
-        asm("");
 
-        auto vec_alpha = vec_type_t<float> {alpha}.vec();
-        for (int j = 0; j < COLS; j++) {
-            for (int i = 0; i < ROWS / VLEN; i++) {
-                vType *C_ij = (vType *)&gPtr(i * VLEN, j);
-                auto C_ij_float = vec_alpha * vec_float((vType)Caux[i][j]);
-                *C_ij += vec_signed(C_ij_float);
-            }
-        }
-    }
 }
 
 template <int ROWS, int COLS, typename T, typename DT>
 inline typename std::enable_if<kernelType(ROWS, COLS, sizeof(T)) == 2,
         void>::type
-gbp(int k, float alpha, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
+gbp(int k, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
 
     using vType = typename vec_type_t<T>::Type;
     using elType = typename vec_type_t<T>::ElementType;
@@ -156,84 +143,71 @@ gbp(int k, float alpha, const DT *MP_A, const DT *MP_B, T *C, dim_t ldC) {
         MT_A += 4 * ROWS;
         MT_B += 4 * COLS;
     }
-
-    bool fastpath = (alpha == 1.0);
-    if (fastpath) {
+ 
         asm("");
         for (int j = 0; j < COLS; j++) {
             auto C_ij = vec_type_t<T>::loadLen(&gPtr(0, j), BYTE_INDEX);
             C_ij += Caux[j];
             C_ij.storeLen(&gPtr(0, j), BYTE_INDEX);
-        }
-    } else {
-
-        asm("");
-        auto vec_alpha = vec_type_t<float> {alpha}.vec();
-        for (int j = 0; j < COLS; j++) {
-            auto C_ij = vec_type_t<T>::loadLen(&gPtr(0, j), BYTE_INDEX);
-            auto C_ij_float = vec_alpha * vec_float((vType)Caux[j]);
-            C_ij += vec_type_t<T> {vec_signed(C_ij_float)};
-            C_ij.storeLen(&gPtr(0, j), BYTE_INDEX);
-        }
-    }
+        } 
 }
 
 template <int M, int ROWS, int COLS>
 typename std::enable_if<(M >= ROWS), void>::type LoopOne_TAIL(dim_t m, dim_t k,
-        float alpha, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
+     int16_t *Apacked, int16_t *Bpacked, int32_t *C,
         dim_t ldC) {
     // end of the roll
 }
 
 template <int M, int ROWS, int COLS>
 typename std::enable_if<(M < ROWS), void>::type LoopOne_TAIL(dim_t m, dim_t k,
-        float alpha, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
+     int16_t *Apacked, int16_t *Bpacked, int32_t *C,
         dim_t ldC) {
     if (m & M) {
-        gbp<M, COLS, int32_t, int16_t>(k, alpha, Apacked, Bpacked, C, ldC);
+        gbp<M, COLS, int32_t, int16_t>(k, Apacked, Bpacked, C, ldC);
         Apacked = &Apacked[M * k];
         C = &gPtr(M, 0);
     }
-    LoopOne_TAIL<2 * M, ROWS, COLS>(m, k, alpha, Apacked, Bpacked, C, ldC);
+    LoopOne_TAIL<2 * M, ROWS, COLS>(m, k, Apacked, Bpacked, C, ldC);
 }
 
 template <int ROWS, int COLS>
-inline void LoopOne(dim_t m, dim_t k, float alpha, int16_t *Apacked,
+inline void LoopOne(dim_t m, dim_t k, int16_t *Apacked,
         int16_t *Bpacked, int32_t *C, dim_t ldC) {
     for (dim_t i = 0; i < m / ROWS; i++) {
-        gbp<ROWS, COLS, int32_t, int16_t>(k, alpha, &Apacked[i * ROWS * k],
+        gbp<ROWS, COLS, int32_t, int16_t>(k, &Apacked[i * ROWS * k],
                 Bpacked, &gPtr(i * ROWS, 0), ldC);
     }
     dim_t II = m - m % ROWS;
     if (m > II)
         LoopOne_TAIL<1, ROWS, COLS>(
-                m - II, k, alpha, &Apacked[II * k], Bpacked, &gPtr(II, 0), ldC);
+                m - II, k, &Apacked[II * k], Bpacked, &gPtr(II, 0), ldC);
 }
 
 template <int N, int COLS>
 typename std::enable_if<(N >= COLS), void>::type LoopTwo_TAIL(dim_t m, dim_t n,
-        dim_t k, float alpha, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
+        dim_t k, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
         dim_t ldC) {
     // end of the roll
 }
 
 template <int N, int COLS>
 typename std::enable_if<(N < COLS), void>::type LoopTwo_TAIL(dim_t m, dim_t n,
-        dim_t k, float alpha, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
+        dim_t k, int16_t *Apacked, int16_t *Bpacked, int32_t *C,
         dim_t ldC) {
     if (n & N) {
-        LoopOne<MR, N>(m, k, alpha, Apacked, Bpacked, C, ldC);
+        LoopOne<MR, N>(m, k, Apacked, Bpacked, C, ldC);
         Bpacked = &Bpacked[N * k];
         C = &gPtr(0, N);
     }
-    LoopTwo_TAIL<2 * N, COLS>(m, n, k, alpha, Apacked, Bpacked, C, ldC);
+    LoopTwo_TAIL<2 * N, COLS>(m, n, k, Apacked, Bpacked, C, ldC);
 }
 
 template <int COLS>
-inline void LoopTwo(dim_t m, dim_t n, dim_t k, float alpha, int16_t *Apacked,
+inline void LoopTwo(dim_t m, dim_t n, dim_t k, int16_t *Apacked,
         int16_t *Bpacked, int32_t *C, dim_t ldC) {
     for (dim_t j = 0; j < n / COLS; j++) {
-        LoopOne<MR, COLS>(m, k, alpha, Apacked, &Bpacked[j * COLS * k],
+        LoopOne<MR, COLS>(m, k, Apacked, &Bpacked[j * COLS * k],
                 &gPtr(0, j * COLS), ldC);
     }
     // tails , should be unrolled
@@ -242,6 +216,6 @@ inline void LoopTwo(dim_t m, dim_t n, dim_t k, float alpha, int16_t *Apacked,
     // as we are using vec_load_len
     dim_t JJ = n - n % COLS;
     if (n > JJ)
-        LoopTwo_TAIL<1, COLS>(m, n - JJ, k, alpha, Apacked, &Bpacked[JJ * k],
+        LoopTwo_TAIL<1, COLS>(m, n - JJ, k, Apacked, &Bpacked[JJ * k],
                 &gPtr(0, JJ), ldC);
 }

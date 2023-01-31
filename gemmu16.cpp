@@ -8,13 +8,15 @@
 #include <pack.hpp>
 #include <kernel_s16s16s32.hpp>
 #include <test_reference.h>
+#include <string.h>
+#include <stdexcept>
 
 // constexpr int MR=12;
 // constexpr int NR=4;
 
-constexpr dim_t MC = 48 * 8 * 2;
-constexpr dim_t KC = 164 * 4;
-constexpr dim_t NC = 2000;
+constexpr dim_t MC = 256;
+constexpr dim_t KC = 2048;
+constexpr dim_t NC = 256;
 
 enum class offset_type {
     none,
@@ -23,20 +25,23 @@ enum class offset_type {
     row,
 };
 
-void preProcessC(offset_type offsetType, dim_t m, dim_t n, float betaOrig,
-        int32_t *C, dim_t ldC, const int32_t *co) {
-    double beta = betaOrig;
+void addResults(offset_type offsetType, dim_t m, dim_t n, double alpha, double beta,
+        int32_t *C, dim_t ldC, int32_t *Ctemp, dim_t ldCtemp, const int32_t *co) {
+
     if (offsetType == offset_type::fixed) {
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    gPtr(i, j) = co[0];
+                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
+                                         saturate<int32_t, double>(val)))
+                            + co[0];
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j);
+                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[0];
@@ -47,13 +52,15 @@ void preProcessC(offset_type offsetType, dim_t m, dim_t n, float betaOrig,
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    gPtr(i, j) = co[j];
+                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
+                                         saturate<int32_t, double>(val))) + co[j];
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j);
+                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[j];
@@ -65,13 +72,15 @@ void preProcessC(offset_type offsetType, dim_t m, dim_t n, float betaOrig,
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    gPtr(i, j) = co[i];
+                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
+                                         saturate<int32_t, double>(val))) +co[i];
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j);
+                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[i];
@@ -82,13 +91,14 @@ void preProcessC(offset_type offsetType, dim_t m, dim_t n, float betaOrig,
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    gPtr(i, j) = 0;
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>( alpha *  (double)Ctemp[j*ldCtemp + i])));
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j);
+                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(
                             nearbyint(saturate<int32_t, double>(val)));
                 }
@@ -99,7 +109,7 @@ void preProcessC(offset_type offsetType, dim_t m, dim_t n, float betaOrig,
 
 template <typename TA>
 inline void LoopThree(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
-        float alpha, const TA *A, dim_t ldA, int16_t *Bpacked, int32_t *C,
+        const TA *A, dim_t ldA, int16_t *Bpacked, int32_t *C,
         dim_t ldC, int16_t *Apacked) {
     constexpr int VLEN = vec_type_t<int32_t>::size();
     for (dim_t i = 0; i < m; i += MC) {
@@ -112,13 +122,13 @@ inline void LoopThree(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
 
         showMatrix(2, ((k + 1) & (-2)) * ib / 2, Apacked, 1, "Apack");
         dim_t kk = (k + 1) & -2;
-        LoopTwo<NR>(ib, n, kk, alpha, Apacked, Bpacked, &gPtr(i, 0), ldC);
+        LoopTwo<NR>(ib, n, kk, Apacked, Bpacked, &gPtr(i, 0), ldC);
     }
 }
 
 template <typename TA, typename TB>
 inline void LoopFour(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
-        float alpha, const TA *A, dim_t ldA, const TB *B, dim_t ldB, int32_t *C,
+        const TA *A, dim_t ldA, const TB *B, dim_t ldB, int32_t *C,
         dim_t ldC, int16_t *Apacked, int16_t *Bpacked) {
     constexpr int VLEN = vec_type_t<int32_t>::size();
     for (dim_t p = 0; p < k; p += KC) {
@@ -131,24 +141,45 @@ inline void LoopFour(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
 
         showMatrix(2, ((pb + 1) & (-2)) * n / 2, Bpacked, 1, "Bpack");
 
-        LoopThree(transA, transB, m, n, pb, alpha,
+        LoopThree(transA, transB, m, n, pb,
                 transA ? &aPtr(p, 0) : &aPtr(0, p), ldA, Bpacked, C, ldC,
                 Apacked);
     }
 }
 
 template <typename TA, typename TB>
-inline void LoopFive(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
-        float alpha, const TA *A, dim_t ldA, const TB *B, dim_t ldB, int32_t *C,
-        dim_t ldC) {
-    std::unique_ptr<int16_t[]> Bpack(new int16_t[KC * NC]);
-    std::unique_ptr<int16_t[]> Apack(new int16_t[MC * KC]);
+inline void LoopFive(offset_type offsetType, bool transA, bool transB, dim_t m, dim_t n, dim_t k,
+        float alpha, const TA *A, dim_t ldA, const TB *B, dim_t ldB,  float beta, int32_t *C,
+        dim_t ldC,const int32_t *co) {
+    
+    //lets restrict sizes by KC,MC,NC
+    int kC = k>KC ? KC : ((k+3) & -4 );
+    int mC = m>MC ? MC : m;
+    int nC = n>NC ? NC : n;
+    std::unique_ptr<int16_t[]> Bpack(new int16_t[kC * nC]);
+    std::unique_ptr<int16_t[]> Apack(new int16_t[mC * kC]);
+    // unfortunately we have create memory for C as well for the correctness
+    // scaling C with beta beforehand is not possible here 
+    // and also we have k blocked which makes it safer to allocate for C
+    std::unique_ptr<int32_t[]> CtempMem(new int32_t[m * nC]);
+
+    int32_t* Ctemp = CtempMem.get();
+    if(!Ctemp || !Apack.get() || !Bpack.get()){
+        throw std::runtime_error("error");
+    }
     for (dim_t j = 0; j < n; j += NC) {
+
+        //set all Ctemp zero
+        for(int y = 0; y<m*nC;y++){
+            Ctemp[y]=0;
+        }
         dim_t jb = std::min(
                 NC, n - j); /* Last loop may not involve a full block */
-        LoopFour(transA, transB, m, jb, k, alpha, A, ldA,
-                transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, &gPtr(0, j), ldC,
+        LoopFour(transA, transB, m, jb, k, A, ldA,
+                transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, Ctemp, m/*ldC*/,
                 Apack.get(), Bpack.get());
+        addResults(offsetType, m, jb, (double)alpha, (double)beta, &gPtr(0,j), ldC, Ctemp, m, co);
+        
     }
 }
 
@@ -164,7 +195,6 @@ void gemmu8u8s32(const char *transa, const char *transb, const char *offsetc,
     bool trA = *transa == 't' || *transa == 'T';
     bool trB = *transb == 't' || *transb == 'T';
 
-    preProcessC(offType, M, M, beta, C, LDC, co);
     LoopFive<uint8_t, uint8_t>(
-            trA, trB, M, N, K, alpha, A, LDA, B, LDB, C, LDC);
+            offType, trA, trB, M, N, K, alpha, A, LDA, B, LDB, beta, C, LDC, co);
 }

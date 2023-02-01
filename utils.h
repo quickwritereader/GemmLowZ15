@@ -250,3 +250,23 @@ CT maxAbsDiff(
     return diff;
 }
 
+template <typename T>
+T *align_ptr(T *ptr, uintptr_t alignment) {
+    return (T *)(((uintptr_t)ptr + alignment - 1) & ~(alignment - 1));
+}
+
+
+template <typename T, typename P>
+constexpr bool one_of(T val, P item) {
+    return val == item;
+}
+template <typename T, typename P, typename... Args>
+constexpr bool one_of(T val, P item, Args... item_others) {
+    return val == item || one_of(val, item_others...);
+}
+
+
+template <typename... Args>
+constexpr bool any_null(Args... ptrs) {
+    return one_of(nullptr, ptrs...);
+}

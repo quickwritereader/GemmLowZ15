@@ -197,12 +197,12 @@ inline out_t saturate_and_round(acc_t f) {
 
 struct test_igemm_params_t {
     char offsetc;
-    bool nonzero_oa;
-    bool nonzero_ob;
+    int8_t _oa = 0;
+    int8_t _ob = 0;
     bool nonzero_oc;
 
-    int8_t oa() const { return (int8_t)(nonzero_oa ? 4 : 0); }
-    int8_t ob() const { return (int8_t)(nonzero_ob ? 3 : 0); }
+    int8_t oa() const { return _oa; }
+    int8_t ob() const { return _ob; }
 };
 
 struct test_pack_params_t {

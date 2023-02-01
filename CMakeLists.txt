@@ -38,6 +38,7 @@ target_compile_definitions(gemmsu16 PUBLIC MR=16 NR=4)
 
 
 add_executable(gemmsu16_debug   main.cpp gemmu16.cpp clock.cpp)
-target_compile_options(gemmsu16_debug PUBLIC "-std=gnu++11;-g;-mvx;-mzvector;;-march=z15")
+target_compile_options(gemmsu16_debug PUBLIC "-std=gnu++11;-g;-mvx;-mzvector;;-march=z15;-fsanitize=address")
 target_include_directories(gemmsu16_debug PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(gemmsu16_debug PUBLIC asan)
 target_compile_definitions(gemmsu16_debug PUBLIC MR=16 NR=4)

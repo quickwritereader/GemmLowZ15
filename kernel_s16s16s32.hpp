@@ -17,11 +17,10 @@ constexpr int kernelType(int ROWS, int COLS, int elementSize) {
 }
 
 
-
 template <int ROWS, int COLS>
 inline typename std::enable_if<kernelType(ROWS, COLS, sizeof(int32_t)) == 1,
         void>::type
-gbp(dim_t k, const int16_t *MP_A, const int16_t *MP_B, int32_t *C, dim_t ldC) {
+gbp(dim_t k, const int16_t * __restrict__  MP_A, const int16_t * __restrict__  MP_B, int32_t * __restrict__ C, dim_t ldC) {
     using vType = typename vec_type_t<int32_t>::Type;
     constexpr int VLEN = vec_type_t<int32_t>::size();
     const int32_t *MT_A = reinterpret_cast<const int32_t *>(MP_A);
@@ -89,7 +88,7 @@ gbp(dim_t k, const int16_t *MP_A, const int16_t *MP_B, int32_t *C, dim_t ldC) {
 template <int ROWS, int COLS>
 inline typename std::enable_if<kernelType(ROWS, COLS, sizeof(int32_t)) == 2,
         void>::type
-gbp(dim_t k, const int16_t *MP_A, const int16_t *MP_B, int32_t *C, dim_t ldC) {
+gbp(dim_t k, const int16_t * __restrict__  MP_A, const int16_t * __restrict__  MP_B, int32_t * __restrict__  C, dim_t ldC) {
 
     using vType = typename vec_type_t<int32_t>::Type;
     constexpr int VLEN = vec_type_t<int32_t>::size();
@@ -202,7 +201,7 @@ typename std::enable_if<(N < COLS), void>::type LoopTwo_TAIL(dim_t m, dim_t n,
 }
 
 template <int COLS>
-inline void LoopTwo(dim_t m, dim_t n, dim_t k, const int16_t *Apacked,
+void LoopTwo(dim_t m, dim_t n, dim_t k, const int16_t *Apacked,
         const int16_t *Bpacked, int32_t *C, dim_t ldC) {
     for (dim_t j = 0; j < n / COLS; j++) {
         LoopOne<MR, COLS>(m, k, Apacked, &Bpacked[j * COLS * k],

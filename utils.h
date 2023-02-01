@@ -14,7 +14,7 @@
 
 using dim_t = int;
 //#define LAST_INDEX_FAST 1
-//#define SHOW_MATRIX
+//#define SHOW_MATRIX 1
 #if defined(LAST_INDEX_FAST)
 constexpr bool ISLASTINDEX_FAST = true;
 #define aPtr(i, j) A[(i)*ldA + (j)] // map aPtr( i,j ) to array A
@@ -215,14 +215,14 @@ void showMatrix(int64_t R, int64_t C, const T *M, int64_t LD,
         const char *name = "", bool trans = false) {
 #if defined(SHOW_MATRIX)
 
-    auto Mptr = MatrixPtr<const T> {M, R, C, LD, trans};
+    auto Mptr = matrix_ptr_t<const T> {M, R, C, LD, trans};
 
     std::cout << "\n#----------\n" << name << "=np.array([\n";
     for (int r = r; r < R; r++) {
         std::cout << "[ ";
         for (int c = 0; c < C; c++) {
             std::cout << std::setfill(' ') << std::setw(3)
-                      << (typename conv<T>::V)Mptr(r, c);
+                      << (int)Mptr(r, c);
             if (c < C - 1) std::cout << ", ";
         }
         std::cout << "],\n";

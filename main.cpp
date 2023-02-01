@@ -5,17 +5,24 @@
 #include <memory>
 //#include <pack.hpp>
 #include <test_reference.h>
+using DA_TYPE=uint8_t;
+using DB_TYPE=uint8_t;
 
-void gemmu8u8s32(const char *transa, const char *transb, const char *offsetc,
+void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
         const uint8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
+        float beta, int32_t *C, dim_t LDC, const int32_t *co);
+
+void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+        dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t LDA,
+        const int8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
         float beta, int32_t *C, dim_t LDC, const int32_t *co);
 
 extern double FLA_Clock();
 constexpr int32_t C_VAL = 12;
 double validate(const char *transA, const char *transB, const char *offsetc,
-        int m, int n, int k, float alpha, uint8_t *A, int ldA,
-        const uint8_t *ao, uint8_t *B, int ldB, const uint8_t *bo, float beta,
+        int m, int n, int k, float alpha, const DA_TYPE *A, int ldA,
+        const DA_TYPE *ao, const DB_TYPE *B, int ldB, const DB_TYPE *bo, float beta,
         int32_t *C, int ldC, const int32_t *co) {
     test_params_t p = {};
     p.transA = *transA;
@@ -37,11 +44,14 @@ double validate(const char *transA, const char *transB, const char *offsetc,
     p.ldc = ldCref;
     std::unique_ptr<int32_t[]> Cref(new int32_t[determineSize(m, n, 0)]);
     fillMatrix(m, n, Cref.get(), ldC, C_VAL);
-    ref_gemm_t<uint8_t, uint8_t>::call(p, m, n, A, B, Cref.get(), oc);
+    ref_gemm_t<DA_TYPE, DB_TYPE>::call(p, m, n, A, B, Cref.get(), oc);
     showMatrix(m, n, Cref.get(), m, "Cref");
 
     return maxAbsDiff<double>(m, n, Cref.get(), ldCref, C, ldC);
 }
+
+
+ 
 
 int main() {
     // constexpr int ldPlus = 1032;
@@ -52,7 +62,7 @@ int main() {
     dim_t last = 1200;
     dim_t first = 200;
     dim_t inc = 200;
-    dim_t nrepeats = 4;
+    dim_t nrepeats = 3;
     test_seed_t seed {};
     dim_t m, n, k;
     char trans[] = {'n', 't'};
@@ -61,8 +71,8 @@ int main() {
     const char *offsetC = " ";
 //     uint8_t add_val = 4;
     const int32_t *co = nullptr;
-    const uint8_t *ao = nullptr;//&add_val;
-    const uint8_t *bo = nullptr;//&add_val;
+    const DA_TYPE *ao = nullptr;//&add_val;
+    const DB_TYPE *bo = nullptr;//&add_val;
     for (auto transA : trans)
         for (auto transB : trans) {
             std::cout << "seed " << seed << " MR: " << MR << " NR: " << NR
@@ -79,19 +89,19 @@ int main() {
                 dim_t ldC = determineLd(m, n, size);
                 // std::cout<<m<<","<<n<<","<<ldC<<","<<determineSize(m,n,ldC)<<std::endl;
 
-                std::unique_ptr<uint8_t[]> A(
-                        new uint8_t[determineSize(m, k, ldA, transA)]);
-                std::unique_ptr<uint8_t[]> B(
-                        new uint8_t[determineSize(k, n, ldB, transB)]);
+                std::unique_ptr<DA_TYPE[]> A(
+                        new DA_TYPE[determineSize(m, k, ldA, transA)]);
+                std::unique_ptr<DB_TYPE[]> B(
+                        new DB_TYPE[determineSize(k, n, ldB, transB)]);
                 std::unique_ptr<int32_t[]> C(
                         new int32_t[determineSize(m, n, ldC)]);
 
 #if !defined(LOW_0_127)
-                randomMatrix(m, k, A.get(), ldA, seed);
+                randomMatrix<DA_TYPE>(m, k, A.get(), ldA, seed);
 #else
-                randomMatrix<uint8_t>(m, k, A.get(), ldA, 0, 127, seed);
+                randomMatrix<DA_TYPE>(m, k, A.get(), ldA, 0, 127, seed);
 #endif
-                randomMatrix(k, n, B.get(), ldB, seed);
+                randomMatrix<DB_TYPE>(k, n, B.get(), ldB, seed);
                 //    linMatrix(m,k, A.get(),ldA, (uint8_t)1);
                 //      linMatrix(k,n, B.get(),ldB, (uint8_t)100);
 
@@ -113,7 +123,7 @@ int main() {
                 for (irep = 0; irep < nrepeats; irep++) {
                     fillMatrix(m, n, C.get(), ldC, C_VAL);
                     auto dtime = FLA_Clock();
-                    gemmu8u8s32(&transA, &transB, offsetC, m, n, k, alpha,
+                    gemmX8X8s32(&transA, &transB, offsetC, m, n, k, alpha,
                             A.get(), ldA, ao, B.get(), ldB, bo, beta, C.get(),
                             ldC, co);
                     dtime = FLA_Clock() - dtime;

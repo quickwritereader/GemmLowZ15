@@ -4,7 +4,7 @@
 #include <iostream>
 template <int G, int KK, bool accessSide, typename T, typename DT = T>
 typename std::enable_if<(KK == 4), void>::type pack_G_KK(
-        int k, const T *src, int srcLD, DT *dst, DT add_val=0) {
+        int k, const T * __restrict__  src, int srcLD, DT * __restrict__  dst, DT add_val=0) {
     auto Src = matrix_ptr_t<const T, accessSide> {src, srcLD};
 
     for (int p = 0; p < k / 4; p++) {
@@ -49,7 +49,7 @@ typename std::enable_if<(KK == 4), void>::type pack_G_KK(
 #include <iostream>
 template <int G, int KK, bool accessSide, typename T, typename DT>
 typename std::enable_if<(KK == 2), void>::type pack_G_KK(
-        int k, const T *src, int srcLD, DT *dst, DT add_val=0) {
+        int k, const T * __restrict__  src, int srcLD, DT * __restrict__  dst, DT add_val=0) {
     auto Src = matrix_ptr_t<const T, accessSide> {src, srcLD};
 
     for (int p = 0; p < k / 2; p++) {
@@ -84,13 +84,13 @@ typename std::enable_if<(KK == 1), void>::type pack_G_KK(
 
 template <int N, int G, int KK, bool accessSide, typename T, typename DT>
 typename std::enable_if<(N >= G), void>::type pack_KK_TAILS(
-        const int k, const int n, const T *src, int srcLD, DT *dst, DT add_val = 0) {
+        const int k, const int n, const T * __restrict__  src, int srcLD, DT * __restrict__  dst, DT add_val = 0) {
     // no need to unroll
 }
 
 template <int N, int G, int KK, bool accessSide, typename T, typename DT>
 typename std::enable_if<(N < G), void>::type pack_KK_TAILS(
-        const int k, const int n, const T *src, int srcLD, DT *dst, DT add_val = 0) {
+        const int k, const int n, const T * __restrict__  src, int srcLD, DT * __restrict__  dst, DT add_val = 0) {
     if (n & N) {
 
         // for example n&1, n&2 and et cetera
@@ -105,7 +105,7 @@ typename std::enable_if<(N < G), void>::type pack_KK_TAILS(
 }
 
 template <typename T, typename DT, int G, int KK = 4, bool trans>
-void pack_K(const int k, const int n, const T *src, int srcLD, DT *dst, DT add_val = 0) {
+void __attribute__ ((noinline)) pack_K(const int k, const int n, const T * __restrict__  src, int srcLD, DT * __restrict__  dst, DT add_val = 0) {
 
     // if k is not divisible by 4 , the rest will be 0-ed
     constexpr bool accessSide = trans ? (!ISLASTINDEX_FAST) : ISLASTINDEX_FAST;

@@ -25,8 +25,8 @@ enum class offset_type {
     row,
 };
 
-void addResults(offset_type offsetType, dim_t m, dim_t n, double alpha, double beta,
-        int32_t *C, dim_t ldC, int32_t *Ctemp, dim_t ldCtemp, const int32_t *co) {
+__attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_t n, double alpha, double beta,
+        int32_t * __restrict__ C, dim_t ldC, int32_t * __restrict__ Ctemp, dim_t ldCtemp, const int32_t * __restrict__ co)   {
 
     if (offsetType == offset_type::fixed) {
         if (beta == 0) {
@@ -180,15 +180,17 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     
     //lets restrict sizes by KC 
     int kC = (k+4)>KC ? KC : ((k+3) & -4 );
-    // int mC = (k+4)>MC ? MC : ((k+3) & -4 );
-    // int nC = (k+4)>NC ? NC : ((k+3) & -4 );
+
+
     
-    auto Bpack = (int16_t *)malloc((kC * NC + 15) * sizeof(int16_t));
-    auto Apack = (int16_t *)malloc((MC * kC + 15) * sizeof(int16_t)); 
+    auto Bpack = (int16_t *)malloc((kC * NC) * sizeof(int16_t)+16);
+    auto Apack = (int16_t *)malloc((MC * kC) * sizeof(int16_t)+16); 
     // unfortunately we have create memory for C as well for the correctness
     // scaling C with beta beforehand is not possible here 
     // and also we have k blocked which makes it safer to allocate for C
-    auto Ctemp = (int32_t *)malloc((MC * NC + 15) * sizeof(int32_t));
+    int mC = m+16>MC ? MC : (m + 15) &(-16);
+    int nC = n+16>NC ? NC : (n + 15) &(-16);
+    auto Ctemp = (int32_t *)malloc((mC * nC) * sizeof(int32_t)+16);
 
     //align
     auto AP = align_ptr(Apack, 16);
@@ -211,7 +213,7 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
                 NC, n - j); /* Last loop may not involve a full block */
         LoopMC(offsetType,transA, transB, m, jb, k, alpha, A, ldA, ao,
                 transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, bo, beta, &gPtr(0,j), ldC,
-                AP,BP, CP, MC, co);
+                AP,BP, CP, mC, co);
         
     }
 
@@ -220,7 +222,7 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     free(Ctemp);
 }
 
-void gemmu8u8s32(const char *transa, const char *transb, const char *offsetc,
+void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
         const uint8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
         float beta, int32_t *C, dim_t LDC, const int32_t *co) {
@@ -233,5 +235,22 @@ void gemmu8u8s32(const char *transa, const char *transb, const char *offsetc,
     bool trB = *transb == 't' || *transb == 'T';
 
     LoopNC<uint8_t, uint8_t>(
+            offType, trA, trB, M, N, K, alpha, A, LDA, ao, B, LDB, bo, beta, C, LDC, co);
+}
+
+
+void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+        dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t LDA,
+        const int8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
+        float beta, int32_t *C, dim_t LDC, const int32_t *co){
+
+    offset_type offType = offset_type::none;
+    if (*offsetc == 'F' || *offsetc == 'f') offType = offset_type::fixed;
+    if (*offsetc == 'R' || *offsetc == 'r') offType = offset_type::row;
+    if (*offsetc == 'C' || *offsetc == 'c') offType = offset_type::column;
+    bool trA = *transa == 't' || *transa == 'T';
+    bool trB = *transb == 't' || *transb == 'T';
+
+    LoopNC<int8_t, uint8_t>(
             offType, trA, trB, M, N, K, alpha, A, LDA, ao, B, LDB, bo, beta, C, LDC, co);
 }

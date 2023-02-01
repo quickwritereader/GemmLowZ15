@@ -29,8 +29,8 @@ double validate(const char *transA, const char *transB, const char *offsetc,
     p.ldb = ldB;
     ;
     p.igemm_params = {};
-    p.igemm_params._oa = (*ao);
-    p.igemm_params._ob = (*bo);
+    if(ao) p.igemm_params._oa = (*ao);
+    if(bo) p.igemm_params._ob = (*bo);
     p.off = {};
     int32_t oc[1] = {};
     int ldCref = determineLd(m, n, 0);
@@ -59,10 +59,10 @@ int main() {
     float alpha = 1.5;
     float beta = 2.0;
     const char *offsetC = " ";
-    uint8_t add_val = 4;
+//     uint8_t add_val = 4;
     const int32_t *co = nullptr;
-    const uint8_t *ao = &add_val;
-    const uint8_t *bo = &add_val;
+    const uint8_t *ao = nullptr;//&add_val;
+    const uint8_t *bo = nullptr;//&add_val;
     for (auto transA : trans)
         for (auto transB : trans) {
             std::cout << "seed " << seed << " MR: " << MR << " NR: " << NR

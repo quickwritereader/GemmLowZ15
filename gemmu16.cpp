@@ -112,7 +112,6 @@ template <typename TA, typename TB>
 inline void LoopKC(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
         const TA *A, dim_t ldA, const TA *ao, const TB *B, dim_t ldB, const TB *bo, int32_t *C,
         dim_t ldC, int16_t *Apacked, int16_t *Bpacked) {
-    constexpr int VLEN = vec_type_t<int32_t>::size();
     for (dim_t p = 0; p < k; p += KC) {
         dim_t pb = std::min(KC, k - p);
         dim_t kk = (pb + 1) & -2;
@@ -159,7 +158,6 @@ template <typename TA, typename TB>
 inline void LoopMC(offset_type offsetType,bool transA, bool transB, dim_t m, dim_t n, dim_t k, float alpha,
         const TA *A, dim_t ldA,  const TA *ao,const TB *B, dim_t ldB, const TB *bo, float beta, int32_t *C,
         dim_t ldC, int16_t *Apacked,int16_t *Bpacked, int32_t *Ctemp, dim_t ldCtemp,const int32_t *co) {
-    constexpr int VLEN = vec_type_t<int32_t>::size();
     for (dim_t i = 0; i < m; i += MC) {
         dim_t ib = std::min(MC, m - i);
 
@@ -205,7 +203,7 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     }
     //we will use (NC->MC->KC) blocking  instead of (NC->KC->MC )to control memory for C temp
     //
-    #pragma omp parallel for
+
     for (dim_t j = 0; j < n; j += NC) {
 
 

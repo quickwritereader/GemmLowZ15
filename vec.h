@@ -91,13 +91,13 @@ std::ostream &operator<<(std::ostream &stream, const vec_type_t<T> &vec) {
     return stream;
 }
 
-template <typename T, typename V>
+template < typename V, typename T>
 vec_type_t<V> cast(const vec_type_t<T> &x) {
     using cast_type = typename vec_type_t<V>::Type;
     return vec_type_t<V> {(cast_type)(x.vec())};
 }
 
-// const vuint16 vz16 = {0};
+// 
 // const vuint16 vone16 = {1, 1, 1, 1, 1, 1, 1, 1};
 
 inline vec_type_t<int32_t> multiplyAdd(vec_type_t<int16_t> va,
@@ -110,51 +110,30 @@ inline vec_type_t<int32_t> multiplyAdd(vec_type_t<int16_t> va,
     return vec_type_t<int32_t> {c};
 }
 
-// inline vuint32 multiplySum4(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
-//     //    std::cout<<va<<std::endl;
-//     //    std::cout<<vb<<std::endl;
-//     const auto a = va;
-//     const auto b = vb;
-//     auto reso = vec_mulo(a, b);
-//     auto rese = vec_mule(a, b);
+inline vuint32 multiplySum4(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb ) {
+    const vuint16 vz16 = {};
+    const auto a = va.vec();
+    const auto b = vb.vec();
+    auto reso = vec_mulo(a, b);
+    auto rese = vec_mule(a, b);
 
-//     auto ret = vec_sum4(reso, vz16);
-//     ret += vec_sum4(rese, vz16);
-//     // asm("");
-//     // std::cout<<"ret: "<<vec_type_t<uint32_t>{ret}<<std::endl;
-//     return ret;
-// }
+    auto ret = vec_sum4(reso, vz16);
+    ret += vec_sum4(rese, vz16); 
+    return ret;
+}
 
-// inline vuint32 multiplySum4_mulo(
-//         vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
-//     //  std::cout<<va<<std::endl;
-//     //  std::cout<<vb<<std::endl;
-//     const auto a = va;
-//     const auto b = vb;
-//     auto reso = vec_mulo(a, b);
+ 
+inline vuint32 multiplySum4Low(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
+    //  std::cout<<va<<std::endl;
+    //  std::cout<<vb<<std::endl;
+    const vuint16 vz16 = {};
+    const auto a = va.vec();
+    const auto b = vb.vec();
+    vuint16 d = vec_mulo(a, b);
+    vuint16 e = vec_meadd(a, b, d);
+    auto ret = vec_sum4(e, vz16); // + vec_sum4(rese, vz16);
 
-//     return vec_sum4(reso, vz16);
-// }
-
-// inline vuint32 multiplySum4_mule(
-//         vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
-//     const auto a = va;
-//     const auto b = vb;
-//     auto rese = vec_mule(a, b);
-
-//     return vec_sum4(rese, vz16);
-// }
-
-// inline vuint32 multiplySum4Low(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
-//     //  std::cout<<va<<std::endl;
-//     //  std::cout<<vb<<std::endl;
-//     const auto a = va;
-//     const auto b = vb;
-//     vuint16 d = vec_moadd(a, b, vz16);
-//     vuint16 e = vec_meadd(a, b, d);
-//     auto ret = vec_sum4(e, vz16); // + vec_sum4(rese, vz16);
-
-//     // std::cout<<vec_type_t<uint32_t>{ret}<<std::endl;
-//     return ret;
-// }
+    // std::cout<<vec_type_t<uint32_t>{ret}<<std::endl;
+    return ret;
+}
 

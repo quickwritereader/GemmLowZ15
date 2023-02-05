@@ -223,9 +223,11 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     free(Ctemp);
 }
 
+
+template<typename TA, typename TB>
 void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
-        dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
-        const uint8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
+        dim_t M, dim_t N, dim_t K, float alpha, const TA *A, dim_t ldA,
+        const TA *ao, const TB *B, dim_t ldB, const TB *bo,
         float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
     offset_type offType = offset_type::none;
@@ -246,38 +248,45 @@ void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
             auto localA = A;
             auto localC = &gPtr(0, j);
           
-            LoopNC<uint8_t, uint8_t>(
+            LoopNC<TA, TB>(
                     offType, trA, trB, M, localN, K, alpha, localA, ldA, ao, localB, ldB, bo, beta, localC, ldC, co);
 
         });
 
     }
-void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t ldA,
         const int8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
         float beta, int32_t *C, dim_t ldC, const int32_t *co){
 
-    offset_type offType = offset_type::none;
-    if (*offsetc == 'F' || *offsetc == 'f') offType = offset_type::fixed;
-    if (*offsetc == 'R' || *offsetc == 'r') offType = offset_type::row;
-    if (*offsetc == 'C' || *offsetc == 'c') offType = offset_type::column;
-    bool trA = *transa == 't' || *transa == 'T';
-    bool trB = *transb == 't' || *transb == 'T';
-    int thr_count =dnnl_get_current_num_threads();
-    int nC = thr_count>1 && N>(NC/4) ? ((N/thr_count +NR-1)&(-NR)) : M;
-    const dim_t nPanels = (N +nC-1)/ nC; 
-    const dim_t tileY = N - (nPanels-1)*nC  ; 
-    dnnl::impl::parallel_nd(nPanels,  [&](int64_t n ) {
-            
-            dim_t localN = n+1==nPanels?tileY:nC;
-            auto j = n * nC;
-            auto localB =  trB ? &bPtr(j, 0) : &bPtr(0, j);
-            auto localA = A;
-            auto localC = &gPtr(0, j);
-          
-            LoopNC<int8_t, uint8_t>(
-                    offType, trA, trB, M, localN, K, alpha, localA, ldA, ao, localB, ldB, bo, beta, localC, ldC, co);
+     gemmX8X8s32<int8_t, uint8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
 
-        });
+}
+
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
+        dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
+        const uint8_t *ao, const int8_t *B, dim_t ldB, const int8_t *bo,
+        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+
+     gemmX8X8s32<uint8_t, int8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
+
+}
+
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
+        dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t ldA,
+        const int8_t *ao, const int8_t *B, dim_t ldB, const int8_t *bo,
+        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+
+     gemmX8X8s32<int8_t, int8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
+
+}
+
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
+        dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
+        const uint8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
+        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+
+     gemmX8X8s32<uint8_t, uint8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
 
 }

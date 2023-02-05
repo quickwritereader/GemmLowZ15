@@ -8,12 +8,12 @@
 using DA_TYPE=uint8_t;
 using DB_TYPE=uint8_t;
 
-void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
         const uint8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
         float beta, int32_t *C, dim_t LDC, const int32_t *co);
 
-void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t LDA,
         const int8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
         float beta, int32_t *C, dim_t LDC, const int32_t *co);
@@ -59,10 +59,10 @@ int main() {
     //   constexpr int m=1000;
     //   constexpr int n=1000;
     //   constexpr int k=1000;
-    dim_t last = 2000;
+    dim_t last = 1991;
     dim_t first = 200;
     dim_t inc = 200;
-    dim_t nrepeats = 1;
+    dim_t nrepeats = 3;
     test_seed_t seed {};
     dim_t m, n, k;
     char trans[] = {'n', 't'};
@@ -123,7 +123,7 @@ int main() {
                 for (irep = 0; irep < nrepeats; irep++) {
                     fillMatrix(m, n, C.get(), ldC, C_VAL);
                     auto dtime = FLA_Clock();
-                    gemmX8X8s32(&transA, &transB, offsetC, m, n, k, alpha,
+                    gemmx8x8s32(&transA, &transB, offsetC, m, n, k, alpha,
                             A.get(), ldA, ao, B.get(), ldB, bo, beta, C.get(),
                             ldC, co);
                     dtime = FLA_Clock() - dtime;

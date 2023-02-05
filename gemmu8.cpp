@@ -206,7 +206,7 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     free(Ctemp);
 }
 
-void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
+void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
         const uint8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
         float beta, int32_t *C, dim_t LDC, const int32_t *co) {

@@ -39,9 +39,9 @@ gbp(dim_t k, const uint8_t * __restrict__  MP_A, const uint8_t * __restrict__  M
                 for (int j = 0; j < COLS; j++) {
                     auto BkI = cast<uint8_t>(vec_type_t<uint32_t> {MT_B[j]});
 #if !defined(LOW_0_127)
-                    Caux[i][j] += multiplySum4(Ak, BkI);
+                    Caux[i][j] = multiplySum4(Ak, BkI, Caux[i][j]);
 #else                    
-                    Caux[i][j] += multiplySum4Low(Ak, BkI);
+                    Caux[i][j] = multiplySum4Low(Ak, BkI, Caux[i][j]);
 #endif 
                 }
             }
@@ -70,12 +70,10 @@ gbp(dim_t k, const uint8_t * __restrict__  MP_A, const uint8_t * __restrict__  M
                 auto rese1 = vec_mule(a1, b1);
                 auto resh = vec_perm(reso0, rese0, mask);
 
-                Caux[i][j] += vec_sum4(reso1, reso0);
-                Caux[i][j] += vec_sum4(rese1, rese0);
-                Caux[i][j] += vec_sum4(resh, vz16);
+                Caux[i][j]  = Caux[i][j].vec() + vec_sum4(reso1, reso0)+vec_sum4(rese1, rese0) + vec_sum4(resh, vz16);
 #else 
-            Caux[i][j] += multiplySum4Low(Ak0, BkI0);
-            Caux[i][j] += multiplySum4Low(Ak1, BkI1);
+            Caux[i][j] = multiplySum4Low(Ak0, BkI0, Caux[i][j]);
+            Caux[i][j] = multiplySum4Low(Ak1, BkI1, Caux[i][j]);
 #endif
             }
         }
@@ -116,9 +114,9 @@ gbp(dim_t k, const uint8_t * __restrict__  MP_A, const uint8_t * __restrict__  M
             for (int j = 0; j < COLS; j++) {
                 auto BkI = cast<uint8_t>(vec_type_t<uint32_t> {MT_B[j]});
 #if !defined(LOW_0_127)
-                Caux[j] += multiplySum4(Ak, BkI);
+                Caux[j] = multiplySum4(Ak, BkI,Caux[j]);
 #else
-                Caux[j] += multiplySum4Low(Ak, BkI);
+                Caux[j] = multiplySum4Low(Ak, BkI,Caux[j]);
 #endif
             }
 
@@ -146,12 +144,10 @@ gbp(dim_t k, const uint8_t * __restrict__  MP_A, const uint8_t * __restrict__  M
                 auto rese1 = vec_mule(a1, b1);
                 auto resh = vec_perm(reso0, rese0, mask);
 
-                Caux[j] += vec_sum4(reso1, reso0);
-                Caux[j] += vec_sum4(rese1, rese0);
-                Caux[j] += vec_sum4(resh, vz16); 
+                Caux[j] = Caux[j].vec() + vec_sum4(reso1, reso0) +  vec_sum4(rese1, rese0) + vec_sum4(resh, vz16); 
 #else
-            Caux[j] += multiplySum4Low(Ak0, BkI0);
-            Caux[j] += multiplySum4Low(Ak1, BkI1);
+            Caux[j] = multiplySum4Low(Ak0, BkI0,Caux[j]);
+            Caux[j] = multiplySum4Low(Ak1, BkI1,Caux[j]);
 
 #endif
         }

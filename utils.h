@@ -10,7 +10,8 @@
 #include <limits>
 #include <random>
 #include <utility>
-
+#include <type_traits>
+#include <assert.h>
 
 using dim_t = int;
 //#define LAST_INDEX_FAST 1
@@ -249,6 +250,8 @@ CT maxAbsDiff(
         }
     return diff;
 }
+namespace utils{
+
 
 template <typename T>
 T *align_ptr(T *ptr, uintptr_t alignment) {
@@ -269,4 +272,66 @@ constexpr bool one_of(T val, P item, Args... item_others) {
 template <typename... Args>
 constexpr bool any_null(Args... ptrs) {
     return one_of(nullptr, ptrs...);
+}
+
+
+template <typename T>
+inline T nd_iterator_init(T start) {
+    return start;
+}
+template <typename T, typename U, typename W, typename... Args>
+inline T nd_iterator_init(T start, U &x, const W &X, Args &&...tuple) {
+    start = nd_iterator_init(start, std::forward<Args>(tuple)...);
+    x = start % X;
+    return start / X;
+}
+
+inline bool nd_iterator_step() {
+    return true;
+}
+template <typename U, typename W, typename... Args>
+inline bool nd_iterator_step(U &x, const W &X, Args &&...tuple) {
+    if (nd_iterator_step(std::forward<Args>(tuple)...)) {
+        if (++x - X == 0) {
+            x = 0;
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename U, typename W, typename Y>
+inline bool nd_iterator_jump(U &cur, const U end, W &x, const Y &X) {
+    U max_jump = end - cur;
+    U dim_jump = X - x;
+    if (dim_jump <= max_jump) {
+        x = 0;
+        cur += dim_jump;
+        return true;
+    } else {
+        cur += max_jump;
+        x += max_jump;
+        return false;
+    }
+}
+template <typename U, typename W, typename Y, typename... Args>
+inline bool nd_iterator_jump(
+        U &cur, const U end, W &x, const Y &X, Args &&...tuple) {
+    if (nd_iterator_jump(cur, end, std::forward<Args>(tuple)...)) {
+        if (++x - X == 0) {
+            x = 0;
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename T, typename U>
+inline typename std::remove_reference<T>::type div_up(const T a, const U b) {
+    assert(b);
+    return static_cast<typename std::remove_reference<T>::type>((a + b - 1) / b);
+}
+
+
+
 }

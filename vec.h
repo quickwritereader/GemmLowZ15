@@ -102,6 +102,7 @@ vec_type_t<V> cast(const vec_type_t<T> &x) {
 
 inline vec_type_t<int32_t> multiplyAdd(vec_type_t<int16_t> va,
         vec_type_t<int16_t> vb, vec_type_t<int32_t> vc) { 
+    // 2 ops  2 moad
     auto a = va.vec();
     auto b = vb.vec();
     auto c = vc.vec();
@@ -110,30 +111,46 @@ inline vec_type_t<int32_t> multiplyAdd(vec_type_t<int16_t> va,
     return vec_type_t<int32_t> {c};
 }
 
-inline vuint32 multiplySum4(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb ) {
+inline vec_type_t<uint32_t> multiplySum4(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb, vec_type_t<uint32_t> vc ) {
+    // 6 ops  2 mul 2 vec_sum 2 addition
     const vuint16 vz16 = {};
     const auto a = va.vec();
     const auto b = vb.vec();
+    auto c = vc.vec();
     auto reso = vec_mulo(a, b);
     auto rese = vec_mule(a, b);
 
-    auto ret = vec_sum4(reso, vz16);
-    ret += vec_sum4(rese, vz16); 
-    return ret;
+    c= c + vec_sum4(reso, vz16) + vec_sum4(rese, vz16); 
+    return vec_type_t<uint32_t> {c};
 }
 
+inline vec_type_t<uint32_t> multiplyAdd(vec_type_t<uint8_t> va,
+        vec_type_t<uint8_t> vb, vec_type_t<uint32_t> vc) { 
+    // 6 ops
+    vuint8 a = va.vec();
+    vuint8 b = vb.vec();
+    auto c = vc.vec();
+    const vuint16 vone16 = {1, 1, 1, 1, 1, 1, 1, 1};
+    vuint16 reso = vec_mulo(a, b);
+    vuint16 rese = vec_mule(a, b);
+    c = vec_moadd(reso, vone16, c);
+    c = vec_meadd(reso, vone16, c);
+    c = vec_moadd(rese, vone16, c);
+    c = vec_meadd(rese, vone16, c); 
+    return vec_type_t<uint32_t> {c};
+}
+
+
  
-inline vuint32 multiplySum4Low(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb) {
-    //  std::cout<<va<<std::endl;
-    //  std::cout<<vb<<std::endl;
+inline vec_type_t<uint32_t> multiplySum4Low(vec_type_t<uint8_t> va, vec_type_t<uint8_t> vb, vec_type_t<uint32_t> vc) {
+    // 4 ops  2 mul 1 vec_sum 1 addition
     const vuint16 vz16 = {};
     const auto a = va.vec();
     const auto b = vb.vec();
+    auto c = vc.vec();
     vuint16 d = vec_mulo(a, b);
     vuint16 e = vec_meadd(a, b, d);
-    auto ret = vec_sum4(e, vz16); // + vec_sum4(rese, vz16);
-
-    // std::cout<<vec_type_t<uint32_t>{ret}<<std::endl;
-    return ret;
+    c= c + vec_sum4(e, vz16);  
+    return vec_type_t<uint32_t> {c};
 }
 

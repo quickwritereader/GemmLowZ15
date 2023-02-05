@@ -59,10 +59,10 @@ int main() {
     //   constexpr int m=1000;
     //   constexpr int n=1000;
     //   constexpr int k=1000;
-    dim_t last = 1200;
+    dim_t last = 2000;
     dim_t first = 200;
     dim_t inc = 200;
-    dim_t nrepeats = 3;
+    dim_t nrepeats = 1;
     test_seed_t seed {};
     dim_t m, n, k;
     char trans[] = {'n', 't'};

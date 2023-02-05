@@ -1,6 +1,8 @@
 #pragma once
 #include <utils.h>
 #include <type_traits>
+#include <dnnl_thread.hpp>
+#include <iostream>
 using data_type_t = int;
 namespace data_type {
 const data_type_t undef = 0;
@@ -269,21 +271,21 @@ struct ref_gemm_t {
         auto pc = matrix_ptr_t<int32_t, ISLASTINDEX_FAST> {&C[p.off.c], p.ldc};
         int8_t oa = p.igemm_params.oa();
         int8_t ob = p.igemm_params.ob();
-        for (int64_t m = 0; m < M; m++)
-            for (int64_t n = 0; n < N; n++) {
-                double c_elem = 0;
-                for (int64_t k = 0; k < p.K; k++) {
-                    const double a_elem = (tr_a ? pa(k, m) : pa(m, k)) - oa;
-                    const double b_elem = (tr_b ? pb(n, k) : pb(k, n)) - ob;
-                    c_elem += a_elem * b_elem;
-                }
-
-                double coffset = OCisR ? oc[n] : OCisC ? oc[m] : oc[0];
-                
-                double val = (p.beta == 0.f ? 0. : p.beta * (double)pc(m, n))
-                        + p.alpha * c_elem + coffset;
-                pc(m, n) = static_cast<int32_t>(
-                        nearbyint(saturate<int32_t, double>(val)));
+ 
+        dnnl::impl::parallel_nd(M, N, [&](int64_t m, int64_t n) {
+            //std::cout<<m<<" "<<M<<" "<<n<<N<<std::endl;
+            double c_elem = 0;
+            for (int64_t k = 0; k < p.K; k++) {
+                const double a_elem = (tr_a ? pa(k, m) : pa(m, k)) - oa;
+                const double b_elem = (tr_b ? pb(n, k) : pb(k, n)) - ob;
+                c_elem += a_elem * b_elem;
             }
-    }
+
+            double coffset = OCisR ? oc[n] : OCisC ? oc[m] : oc[0];
+            double val = (p.beta == 0.f ? 0. : p.beta * (double)pc(m, n))
+                    + p.alpha * c_elem + coffset;
+            pc(m, n) = static_cast<int32_t>(
+                    nearbyint(saturate<int32_t, double>(val)));
+        });
+            }
 };

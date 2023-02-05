@@ -10,13 +10,14 @@
 #include <test_reference.h>
 #include <string.h>
 #include <stdexcept>
+#include <dnnl_thread.hpp>
 
 // constexpr int MR=12;
 // constexpr int NR=4;
 
 constexpr int MC = 96 * 8  ;
 constexpr int KC = 164 * 4 * 2;
-constexpr int NC = 1024;
+constexpr int NC = 512;
 
 enum class offset_type {
     none,
@@ -193,11 +194,11 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     auto Ctemp = (int32_t *)malloc((mC * nC) * sizeof(int32_t)+16);
 
     //align
-    auto AP = align_ptr(Apack, 16);
-    auto BP = align_ptr(Bpack, 16);
-    auto CP = align_ptr(Ctemp, 16);
+    auto AP = utils::align_ptr(Apack, 16);
+    auto BP = utils::align_ptr(Bpack, 16);
+    auto CP = utils::align_ptr(Ctemp, 16);
  
-    if (any_null(Apack, Bpack, Ctemp)) {
+    if (utils::any_null(Apack, Bpack, Ctemp)) {
         free(Apack);
         free(Bpack);
         free(Ctemp);
@@ -223,9 +224,9 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
 }
 
 void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
-        dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
-        const uint8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
-        float beta, int32_t *C, dim_t LDC, const int32_t *co) {
+        dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
+        const uint8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
+        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
     offset_type offType = offset_type::none;
     if (*offsetc == 'F' || *offsetc == 'f') offType = offset_type::fixed;
@@ -233,16 +234,28 @@ void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
     if (*offsetc == 'C' || *offsetc == 'c') offType = offset_type::column;
     bool trA = *transa == 't' || *transa == 'T';
     bool trB = *transb == 't' || *transb == 'T';
+    int thr_count =dnnl_get_current_num_threads();
+    int nC = thr_count>1 && N>(NC/4) ? ((N/thr_count +NR-1)&(-NR)) : M;
+    const dim_t nPanels = (N +nC-1)/ nC; 
+    const dim_t tileY = N - (nPanels-1)*nC  ; 
+    dnnl::impl::parallel_nd(nPanels,  [&](int64_t n ) {
+            
+            dim_t localN = n+1==nPanels?tileY:nC;
+            auto j = n * nC;
+            auto localB =  trB ? &bPtr(j, 0) : &bPtr(0, j);
+            auto localA = A;
+            auto localC = &gPtr(0, j);
+          
+            LoopNC<uint8_t, uint8_t>(
+                    offType, trA, trB, M, localN, K, alpha, localA, ldA, ao, localB, ldB, bo, beta, localC, ldC, co);
 
-    LoopNC<uint8_t, uint8_t>(
-            offType, trA, trB, M, N, K, alpha, A, LDA, ao, B, LDB, bo, beta, C, LDC, co);
-}
+        });
 
-
+    }
 void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
-        dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t LDA,
-        const int8_t *ao, const uint8_t *B, dim_t LDB, const uint8_t *bo,
-        float beta, int32_t *C, dim_t LDC, const int32_t *co){
+        dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t ldA,
+        const int8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
+        float beta, int32_t *C, dim_t ldC, const int32_t *co){
 
     offset_type offType = offset_type::none;
     if (*offsetc == 'F' || *offsetc == 'f') offType = offset_type::fixed;
@@ -250,7 +263,21 @@ void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
     if (*offsetc == 'C' || *offsetc == 'c') offType = offset_type::column;
     bool trA = *transa == 't' || *transa == 'T';
     bool trB = *transb == 't' || *transb == 'T';
+    int thr_count =dnnl_get_current_num_threads();
+    int nC = thr_count>1 && N>(NC/4) ? ((N/thr_count +NR-1)&(-NR)) : M;
+    const dim_t nPanels = (N +nC-1)/ nC; 
+    const dim_t tileY = N - (nPanels-1)*nC  ; 
+    dnnl::impl::parallel_nd(nPanels,  [&](int64_t n ) {
+            
+            dim_t localN = n+1==nPanels?tileY:nC;
+            auto j = n * nC;
+            auto localB =  trB ? &bPtr(j, 0) : &bPtr(0, j);
+            auto localA = A;
+            auto localC = &gPtr(0, j);
+          
+            LoopNC<int8_t, uint8_t>(
+                    offType, trA, trB, M, localN, K, alpha, localA, ldA, ao, localB, ldB, bo, beta, localC, ldC, co);
 
-    LoopNC<int8_t, uint8_t>(
-            offType, trA, trB, M, N, K, alpha, A, LDA, ao, B, LDB, bo, beta, C, LDC, co);
+        });
+
 }

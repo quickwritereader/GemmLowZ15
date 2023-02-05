@@ -201,7 +201,7 @@ typename std::enable_if<(N < COLS), void>::type LoopTwo_TAIL(dim_t m, dim_t n,
 }
 
 template <int COLS>
-void LoopTwo(dim_t m, dim_t n, dim_t k, const int16_t *Apacked,
+void __attribute__ ((noinline))  LoopTwo(dim_t m, dim_t n, dim_t k, const int16_t *Apacked,
         const int16_t *Bpacked, int32_t *C, dim_t ldC) {
     for (dim_t j = 0; j < n / COLS; j++) {
         LoopOne<MR, COLS>(m, k, Apacked, &Bpacked[j * COLS * k],

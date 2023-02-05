@@ -14,8 +14,8 @@
 // constexpr int MR=12;
 // constexpr int NR=4;
 
-constexpr int MC = 96 * 8 *2 ;
-constexpr int KC = 164 * 4 * 2;
+constexpr int MC = 96 * 8 *2;
+constexpr int KC = 164 * 4 * 2 ;
 constexpr int NC = 1024;
 
 enum class offset_type {
@@ -177,11 +177,11 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     auto Ctemp = (uint32_t *)malloc((mC * nC) * sizeof(uint32_t)+4096);
 
     //align
-    auto AP = align_ptr(Apack, 16);
-    auto BP = align_ptr(Bpack, 16);
-    auto CP = align_ptr(Ctemp, 4096);
+    auto AP = utils::align_ptr(Apack, 16);
+    auto BP = utils::align_ptr(Bpack, 16);
+    auto CP = utils::align_ptr(Ctemp, 4096);
  
-    if (any_null(Apack, Bpack, Ctemp)) {
+    if (utils::any_null(Apack, Bpack, Ctemp)) {
         free(Apack);
         free(Bpack);
         free(Ctemp);

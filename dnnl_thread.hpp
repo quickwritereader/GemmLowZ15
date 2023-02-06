@@ -16,10 +16,10 @@
 
 #ifndef COMMON_DNNL_THREAD_HPP
 #define COMMON_DNNL_THREAD_HPP
-#include <stdio.h>
 #include <algorithm>
 #include <functional>
 #include <mutex>
+#include <stdio.h>
 #define DNNL_RUNTIME_SEQ 1
 #define DNNL_RUNTIME_OMP 2
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_SEQ
@@ -46,8 +46,8 @@ inline int dnnl_in_parallel() {
 inline void dnnl_thr_barrier() {
 #pragma omp barrier
 }
- 
-#endif 
+
+#endif
 
 /* The purpose of this function is to provide the number of threads the library
  * is aware of when this function is invoked. Since oneDNN does not allow nested
@@ -63,7 +63,7 @@ inline void dnnl_thr_barrier() {
  *   invoked, return 1 since the main thread will do the work.
  */
 inline int dnnl_get_current_num_threads() {
-    if (dnnl_in_parallel()) return 1; 
+    if (dnnl_in_parallel()) return 1;
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_OMP
     return omp_get_max_threads();
 #else
@@ -80,8 +80,6 @@ inline int dnnl_get_current_num_threads() {
 #define OMP_GET_THREAD_NUM() 0
 #define OMP_GET_NUM_THREADS() 1
 #endif
- 
-
 
 namespace dnnl {
 namespace impl {
@@ -445,7 +443,7 @@ static inline void parallel_nd(
     const dim_t work_amount = D0 * D1;
 
     int nthr = adjust_num_threads(dnnl_get_current_num_threads(), work_amount);
-      //  printf("--- %d %d %d nthr %d\n",(int)D0,(int)D1, (int)work_amount, nthr);
+    //  printf("--- %d %d %d nthr %d\n",(int)D0,(int)D1, (int)work_amount, nthr);
     if (nthr)
         parallel(nthr,
                 [&](int ithr, int nthr) { for_nd(ithr, nthr, D0, D1, f); });
@@ -491,18 +489,16 @@ static inline void parallel_nd(dim_t D0, dim_t D1, dim_t D2, dim_t D3, dim_t D4,
 /* parallel_nd_in_omp section */
 
 template <typename... Args>
-void parallel_nd_in_omp(Args &&...args) {
+void parallel_nd_in_omp(Args &&... args) {
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_SEQ
     for_nd(0, 1, std::forward<Args>(args)...);
 #elif DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_OMP
     for_nd(omp_get_thread_num(), omp_get_num_threads(),
             std::forward<Args>(args)...);
 #endif
- 
 }
 
 } // namespace impl
 } // namespace dnnl
 
 #endif
-

@@ -72,7 +72,7 @@ struct matrix_ptr_t {
     }
 
     T *ptr(int64_t i, int64_t j) {
-        // std::cout<<i<<','<<j<<" "<<j*ld+i<<std::endl;
+
         if (LastIndexFast)
             return a + i * ld + j;
         else
@@ -80,8 +80,7 @@ struct matrix_ptr_t {
     }
 
     T &element(int64_t i, int64_t j) {
-        //  std::cout<<"ld "<<ld<<" ("<<i<<','<<j<<") -addr
-        //  "<<j*ld+i<<std::endl;
+
         if (LastIndexFast)
             return a[i * ld + j];
         else

@@ -5,8 +5,8 @@
 #include <memory>
 //#include <pack.hpp>
 #include <test_reference.h>
-using DA_TYPE=uint8_t;
-using DB_TYPE=uint8_t;
+using DA_TYPE = uint8_t;
+using DB_TYPE = uint8_t;
 
 void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t LDA,
@@ -22,8 +22,8 @@ extern double FLA_Clock();
 constexpr int32_t C_VAL = 12;
 double validate(const char *transA, const char *transB, const char *offsetc,
         int m, int n, int k, float alpha, const DA_TYPE *A, int ldA,
-        const DA_TYPE *ao, const DB_TYPE *B, int ldB, const DB_TYPE *bo, float beta,
-        int32_t *C, int ldC, const int32_t *co) {
+        const DA_TYPE *ao, const DB_TYPE *B, int ldB, const DB_TYPE *bo,
+        float beta, int32_t *C, int ldC, const int32_t *co) {
     test_params_t p = {};
     p.transA = *transA;
     p.transB = *transB;
@@ -36,8 +36,8 @@ double validate(const char *transA, const char *transB, const char *offsetc,
     p.ldb = ldB;
     ;
     p.igemm_params = {};
-    if(ao) p.igemm_params._oa = (*ao);
-    if(bo) p.igemm_params._ob = (*bo);
+    if (ao) p.igemm_params._oa = (*ao);
+    if (bo) p.igemm_params._ob = (*bo);
     p.off = {};
     int32_t oc[1] = {};
     int ldCref = determineLd(m, n, 0);
@@ -49,9 +49,6 @@ double validate(const char *transA, const char *transB, const char *offsetc,
 
     return maxAbsDiff<double>(m, n, Cref.get(), ldCref, C, ldC);
 }
-
-
- 
 
 int main() {
     // constexpr int ldPlus = 1032;
@@ -69,10 +66,10 @@ int main() {
     float alpha = 1.5;
     float beta = 2.0;
     const char *offsetC = " ";
-//     uint8_t add_val = 4;
+    //     uint8_t add_val = 4;
     const int32_t *co = nullptr;
-    const DA_TYPE *ao = nullptr;//&add_val;
-    const DB_TYPE *bo = nullptr;//&add_val;
+    const DA_TYPE *ao = nullptr; //&add_val;
+    const DB_TYPE *bo = nullptr; //&add_val;
     for (auto transA : trans)
         for (auto transB : trans) {
             std::cout << "seed " << seed << " MR: " << MR << " NR: " << NR

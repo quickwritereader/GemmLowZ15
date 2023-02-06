@@ -6,16 +6,16 @@
 #include <cstdint>
 #include <memory>
 #include <pack.hpp>
+#include <stdexcept>
+#include <string.h>
+#include <dnnl_thread.hpp>
 #include <kernel_s16s16s32.hpp>
 #include <test_reference.h>
-#include <string.h>
-#include <stdexcept>
-#include <dnnl_thread.hpp>
 
 // constexpr int MR=12;
 // constexpr int NR=4;
 
-constexpr int MC = 96 * 8  ;
+constexpr int MC = 96 * 8;
 constexpr int KC = 164 * 4 * 2;
 constexpr int NC = 512;
 
@@ -26,14 +26,16 @@ enum class offset_type {
     row,
 };
 
-__attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_t n, double alpha, double beta,
-        int32_t * __restrict__ C, dim_t ldC, int32_t * __restrict__ Ctemp, dim_t ldCtemp, const int32_t * __restrict__ co)   {
+__attribute__((noinline)) void addResults(offset_type offsetType, dim_t m,
+        dim_t n, double alpha, double beta, int32_t *__restrict__ C, dim_t ldC,
+        int32_t *__restrict__ Ctemp, dim_t ldCtemp,
+        const int32_t *__restrict__ co) {
 
     if (offsetType == offset_type::fixed) {
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[0];
@@ -42,7 +44,8 @@ __attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = beta * (double)gPtr(i, j)
+                            + alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[0];
@@ -53,15 +56,17 @@ __attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val))) + co[j];
+                                         saturate<int32_t, double>(val)))
+                            + co[j];
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = beta * (double)gPtr(i, j)
+                            + alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[j];
@@ -73,15 +78,17 @@ __attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_
         if (beta == 0) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val  =  alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val))) +co[i];
+                                         saturate<int32_t, double>(val)))
+                            + co[i];
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = beta * (double)gPtr(i, j)
+                            + alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(nearbyint(
                                          saturate<int32_t, double>(val)))
                             + co[i];
@@ -93,13 +100,15 @@ __attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     gPtr(i, j) = static_cast<int32_t>(
-                            nearbyint(saturate<int32_t, double>( alpha *  (double)Ctemp[j*ldCtemp + i])));
+                            nearbyint(saturate<int32_t, double>(
+                                    alpha * (double)Ctemp[j * ldCtemp + i])));
                 }
             }
         } else if (beta != 1) {
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = beta * (double)gPtr(i, j) + alpha *  (double)Ctemp[j*ldCtemp + i];
+                    double val = beta * (double)gPtr(i, j)
+                            + alpha * (double)Ctemp[j * ldCtemp + i];
                     gPtr(i, j) = static_cast<int32_t>(
                             nearbyint(saturate<int32_t, double>(val)));
                 }
@@ -108,114 +117,119 @@ __attribute__ ((noinline)) void addResults(offset_type offsetType, dim_t m, dim_
     }
 }
 
-
 template <typename TA, typename TB>
 inline void LoopKC(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
-        const TA *A, dim_t ldA, const TA *ao, const TB *B, dim_t ldB, const TB *bo, int32_t *C,
-        dim_t ldC, int16_t *Apacked, int16_t *Bpacked) {
+        const TA *A, dim_t ldA, const TA *ao, const TB *B, dim_t ldB,
+        const TB *bo, int32_t *C, dim_t ldC, int16_t *Apacked,
+        int16_t *Bpacked) {
     for (dim_t p = 0; p < k; p += KC) {
         dim_t pb = std::min(KC, k - p);
         dim_t kk = (pb + 1) & -2;
-        if(bo){
+        if (bo) {
             int16_t add_val = -(*bo);
             if (transB) {
-                pack_K<TB, int16_t, NR, 2, true>(pb, n, &bPtr(0, p), ldB, Bpacked, add_val);
+                pack_K<TB, int16_t, NR, 2, true>(
+                        pb, n, &bPtr(0, p), ldB, Bpacked, add_val);
             } else {
-                pack_K<TB, int16_t, NR, 2, false>(pb, n, &bPtr(p, 0), ldB, Bpacked, add_val);
+                pack_K<TB, int16_t, NR, 2, false>(
+                        pb, n, &bPtr(p, 0), ldB, Bpacked, add_val);
             }
-        }else{
+        } else {
             if (transB) {
-                pack_K<TB, int16_t, NR, 2, true>(pb, n, &bPtr(0, p), ldB, Bpacked);
+                pack_K<TB, int16_t, NR, 2, true>(
+                        pb, n, &bPtr(0, p), ldB, Bpacked);
             } else {
-                pack_K<TB, int16_t, NR, 2, false>(pb, n, &bPtr(p, 0), ldB, Bpacked);
+                pack_K<TB, int16_t, NR, 2, false>(
+                        pb, n, &bPtr(p, 0), ldB, Bpacked);
             }
         }
 
-        if(ao){
+        if (ao) {
             int16_t add_val = -(*ao);
             if (transA) {
-                pack_K<TA, int16_t, MR, 2, false>(pb, m, &aPtr(p, 0), ldA, Apacked, add_val);
+                pack_K<TA, int16_t, MR, 2, false>(
+                        pb, m, &aPtr(p, 0), ldA, Apacked, add_val);
             } else {
-                pack_K<TA, int16_t, MR, 2, true>(pb, m, &aPtr(0, p), ldA, Apacked, add_val);
+                pack_K<TA, int16_t, MR, 2, true>(
+                        pb, m, &aPtr(0, p), ldA, Apacked, add_val);
             }
-        }else{
+        } else {
             if (transA) {
-                pack_K<TA, int16_t, MR, 2, false>(pb, m, &aPtr(p, 0), ldA, Apacked);
+                pack_K<TA, int16_t, MR, 2, false>(
+                        pb, m, &aPtr(p, 0), ldA, Apacked);
             } else {
-                pack_K<TA, int16_t, MR, 2, true>(pb, m, &aPtr(0, p), ldA, Apacked);
+                pack_K<TA, int16_t, MR, 2, true>(
+                        pb, m, &aPtr(0, p), ldA, Apacked);
             }
         }
 
         showMatrix(2, ((pb + 1) & (-2)) * n / 2, Bpacked, 1, "Bpack");
 
         showMatrix(2, ((pb + 1) & (-2)) * m / 2, Apacked, 1, "Apack");
-        
-        LoopTwo<NR>(m, n, kk, Apacked, Bpacked, C, ldC);
 
+        LoopTwo<NR>(m, n, kk, Apacked, Bpacked, C, ldC);
     }
 }
 
 template <typename TA, typename TB>
-inline void LoopMC(offset_type offsetType,bool transA, bool transB, dim_t m, dim_t n, dim_t k, float alpha,
-        const TA *A, dim_t ldA,  const TA *ao,const TB *B, dim_t ldB, const TB *bo, float beta, int32_t *C,
-        dim_t ldC, int16_t *Apacked,int16_t *Bpacked, int32_t *Ctemp, dim_t ldCtemp,const int32_t *co) {
+inline void LoopMC(offset_type offsetType, bool transA, bool transB, dim_t m,
+        dim_t n, dim_t k, float alpha, const TA *A, dim_t ldA, const TA *ao,
+        const TB *B, dim_t ldB, const TB *bo, float beta, int32_t *C, dim_t ldC,
+        int16_t *Apacked, int16_t *Bpacked, int32_t *Ctemp, dim_t ldCtemp,
+        const int32_t *co) {
     for (dim_t i = 0; i < m; i += MC) {
         dim_t ib = std::min(MC, m - i);
 
-        for(dim_t u=0; u < ib*n; u++){
+        for (dim_t u = 0; u < ib * n; u++) {
             Ctemp[u] = 0;
         }
-        LoopKC(transA, transB, ib, n, k, transA?&aPtr(0,i):&aPtr(i,0), ldA, ao, B, ldB, bo, Ctemp, ib,
-                Apacked, Bpacked);
+        LoopKC(transA, transB, ib, n, k, transA ? &aPtr(0, i) : &aPtr(i, 0),
+                ldA, ao, B, ldB, bo, Ctemp, ib, Apacked, Bpacked);
 
-                
-        addResults(offsetType, ib, n, (double)alpha, (double)beta, &gPtr(i, 0), ldC, Ctemp, ib, co);
+        addResults(offsetType, ib, n, (double)alpha, (double)beta, &gPtr(i, 0),
+                ldC, Ctemp, ib, co);
     }
 }
 
-
 template <typename TA, typename TB>
-inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, dim_t n, dim_t k,
-        float alpha, const TA *A, dim_t ldA, const TA *ao, const TB *B, dim_t ldB,  const TB *bo,float beta, int32_t *C,
-        dim_t ldC,const int32_t *co) {
-    
-    //lets restrict sizes by KC 
-    int kC = (k+4)>KC ? KC : ((k+3) & -4 );
+inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m,
+        dim_t n, dim_t k, float alpha, const TA *A, dim_t ldA, const TA *ao,
+        const TB *B, dim_t ldB, const TB *bo, float beta, int32_t *C, dim_t ldC,
+        const int32_t *co) {
 
+    //lets restrict sizes by KC
+    int kC = (k + 4) > KC ? KC : ((k + 3) & -4);
 
-    
-    auto Bpack = (int16_t *)malloc((kC * NC) * sizeof(int16_t)+16);
-    auto Apack = (int16_t *)malloc((MC * kC) * sizeof(int16_t)+16); 
+    auto Bpack = (int16_t *)malloc((kC * NC) * sizeof(int16_t) + 16);
+    auto Apack = (int16_t *)malloc((MC * kC) * sizeof(int16_t) + 16);
     // unfortunately we have create memory for C as well for the correctness
-    // scaling C with beta beforehand is not possible here 
+    // scaling C with beta beforehand is not possible here
     // and also we have k blocked which makes it safer to allocate for C
-    int mC = m+16>MC ? MC : (m + 15) &(-16);
-    int nC = n+16>NC ? NC : (n + 15) &(-16);
-    auto Ctemp = (int32_t *)malloc((mC * nC) * sizeof(int32_t)+16);
+    int mC = m + 16 > MC ? MC : (m + 15) & (-16);
+    int nC = n + 16 > NC ? NC : (n + 15) & (-16);
+    auto Ctemp = (int32_t *)malloc((mC * nC) * sizeof(int32_t) + 16);
 
     //align
     auto AP = utils::align_ptr(Apack, 16);
     auto BP = utils::align_ptr(Bpack, 16);
     auto CP = utils::align_ptr(Ctemp, 16);
- 
+
     if (utils::any_null(Apack, Bpack, Ctemp)) {
         free(Apack);
         free(Bpack);
         free(Ctemp);
-        return ;
+        return;
     }
     //we will use (NC->MC->KC) blocking  instead of (NC->KC->MC )to control memory for C temp
     //
 
     for (dim_t j = 0; j < n; j += NC) {
 
-
         dim_t jb = std::min(
                 NC, n - j); /* Last loop may not involve a full block */
-        LoopMC(offsetType,transA, transB, m, jb, k, alpha, A, ldA, ao,
-                transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, bo, beta, &gPtr(0,j), ldC,
-                AP,BP, CP, mC, co);
-        
+        LoopMC(offsetType, transA, transB, m, jb, k, alpha, A, ldA, ao,
+                transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, bo, beta, &gPtr(0, j),
+                ldC, AP, BP, CP, mC, co);
     }
 
     free(Apack);
@@ -223,12 +237,11 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m, di
     free(Ctemp);
 }
 
-
-template<typename TA, typename TB>
+template <typename TA, typename TB>
 void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const TA *A, dim_t ldA,
-        const TA *ao, const TB *B, dim_t ldB, const TB *bo,
-        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
+        const TA *ao, const TB *B, dim_t ldB, const TB *bo, float beta,
+        int32_t *C, dim_t ldC, const int32_t *co) {
 
     offset_type offType = offset_type::none;
     if (*offsetc == 'F' || *offsetc == 'f') offType = offset_type::fixed;
@@ -236,57 +249,55 @@ void gemmX8X8s32(const char *transa, const char *transb, const char *offsetc,
     if (*offsetc == 'C' || *offsetc == 'c') offType = offset_type::column;
     bool trA = *transa == 't' || *transa == 'T';
     bool trB = *transb == 't' || *transb == 'T';
-    int thr_count =dnnl_get_current_num_threads();
-    int nC = thr_count>1 && N>(NC/4) ? ((N/thr_count +NR-1)&(-NR)) : M;
-    const dim_t nPanels = (N +nC-1)/ nC; 
-    const dim_t tileY = N - (nPanels-1)*nC  ; 
-    dnnl::impl::parallel_nd(nPanels,  [&](int64_t n ) {
-            
-            dim_t localN = n+1==nPanels?tileY:nC;
-            auto j = n * nC;
-            auto localB =  trB ? &bPtr(j, 0) : &bPtr(0, j);
-            auto localA = A;
-            auto localC = &gPtr(0, j);
-          
-            LoopNC<TA, TB>(
-                    offType, trA, trB, M, localN, K, alpha, localA, ldA, ao, localB, ldB, bo, beta, localC, ldC, co);
+    int thr_count = dnnl_get_current_num_threads();
+    int nC = thr_count > 1 && N > (NC / 4) ? ((N / thr_count + NR - 1) & (-NR))
+                                           : M;
+    const dim_t nPanels = (N + nC - 1) / nC;
+    const dim_t tileY = N - (nPanels - 1) * nC;
+    dnnl::impl::parallel_nd(nPanels, [&](int64_t n) {
+        dim_t localN = n + 1 == nPanels ? tileY : nC;
+        auto j = n * nC;
+        auto localB = trB ? &bPtr(j, 0) : &bPtr(0, j);
+        auto localA = A;
+        auto localC = &gPtr(0, j);
 
-        });
-
-    }
+        LoopNC<TA, TB>(offType, trA, trB, M, localN, K, alpha, localA, ldA, ao,
+                localB, ldB, bo, beta, localC, ldC, co);
+    });
+}
 
 void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t ldA,
         const int8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
-        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
-     gemmX8X8s32<int8_t, uint8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
-
+    gemmX8X8s32<int8_t, uint8_t>(transa, transb, offsetc, M, N, K, alpha, A,
+            ldA, ao, B, ldB, bo, beta, C, ldC, co);
 }
 
 void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
         const uint8_t *ao, const int8_t *B, dim_t ldB, const int8_t *bo,
-        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
-     gemmX8X8s32<uint8_t, int8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
-
+    gemmX8X8s32<uint8_t, int8_t>(transa, transb, offsetc, M, N, K, alpha, A,
+            ldA, ao, B, ldB, bo, beta, C, ldC, co);
 }
 
 void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const int8_t *A, dim_t ldA,
         const int8_t *ao, const int8_t *B, dim_t ldB, const int8_t *bo,
-        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
-     gemmX8X8s32<int8_t, int8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
-
+    gemmX8X8s32<int8_t, int8_t>(transa, transb, offsetc, M, N, K, alpha, A, ldA,
+            ao, B, ldB, bo, beta, C, ldC, co);
 }
 
 void gemmx8x8s32(const char *transa, const char *transb, const char *offsetc,
         dim_t M, dim_t N, dim_t K, float alpha, const uint8_t *A, dim_t ldA,
         const uint8_t *ao, const uint8_t *B, dim_t ldB, const uint8_t *bo,
-        float beta, int32_t *C, dim_t ldC, const int32_t *co){
+        float beta, int32_t *C, dim_t ldC, const int32_t *co) {
 
-     gemmX8X8s32<uint8_t, uint8_t>(transa, transb, offsetc,M, N, K,  alpha, A, ldA, ao, B, ldB, bo, beta, C, ldC, co);
-
+    gemmX8X8s32<uint8_t, uint8_t>(transa, transb, offsetc, M, N, K, alpha, A,
+            ldA, ao, B, ldB, bo, beta, C, ldC, co);
 }

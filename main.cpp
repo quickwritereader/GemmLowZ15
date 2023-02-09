@@ -38,14 +38,15 @@ double validate(const char *transA, const char *transB, const char *offsetc,
     p.igemm_params = {};
     if (ao) p.igemm_params._oa = (*ao);
     if (bo) p.igemm_params._ob = (*bo);
+    if(offsetc) p.igemm_params.offsetc = *offsetc;
     p.off = {};
-    int32_t oc[1] = {};
     int ldCref = determineLd(m, n, 0);
     p.ldc = ldCref;
+
     std::unique_ptr<int32_t[]> Cref(new int32_t[determineSize(m, n, 0)]);
-    fillMatrix(m, n, Cref.get(), ldC, C_VAL);
-    ref_gemm_t<DA_TYPE, DB_TYPE>::call(p, m, n, A, B, Cref.get(), oc);
-    showMatrix(m, n, Cref.get(), m, "Cref");
+    fillMatrix(m, n, Cref.get(), ldCref, C_VAL);
+    ref_gemm_t<DA_TYPE, DB_TYPE>::call(p, m, n, A, B, Cref.get(), co);
+    showMatrix(m, n, Cref.get(), ldCref, "Cref");
 
     return maxAbsDiff<double>(m, n, Cref.get(), ldCref, C, ldC);
 }
@@ -65,9 +66,14 @@ int main() {
     char trans[] = {'n', 't'};
     float alpha = 1.5;
     float beta = 2.0;
-    const char *offsetC = " ";
+    const char *offsetC = "c";
     //     uint8_t add_val = 4;
-    const int32_t *co = nullptr;
+    std::unique_ptr<int32_t[]> cop(
+                        new int32_t[last]);
+    randomMatrix<int32_t>(last, 1, cop.get(), 1, 1, 13, seed);
+    showMatrix(  1, last, cop.get(), 1, "co");
+    //fillMatrix(last,1,cop.get(),1, 5);
+    const int32_t *co = (const int32_t *)cop.get();
     const DA_TYPE *ao = nullptr; //&add_val;
     const DB_TYPE *bo = nullptr; //&add_val;
     for (auto transA : trans)
@@ -79,17 +85,21 @@ int main() {
             for (dim_t size = last; size >= first; size -= inc) {
                 /* we will only time cases where all three matrices are square */
                 m = n = k = size;
+                bool trA = transA == 't' || transA == 'T';
+                bool trB = transB == 't' || transB == 'T';
+
                 // m=1;
                 // n=1;
-                dim_t ldA = determineLd(m, k, size, transA);
-                dim_t ldB = determineLd(k, n, size, transB);
+                dim_t ldA = determineLd(m, k, size, trA);
+                dim_t ldB = determineLd(k, n, size, trB);
                 dim_t ldC = determineLd(m, n, size);
+
                 // std::cout<<m<<","<<n<<","<<ldC<<","<<determineSize(m,n,ldC)<<std::endl;
 
                 std::unique_ptr<DA_TYPE[]> A(
-                        new DA_TYPE[determineSize(m, k, ldA, transA)]);
+                        new DA_TYPE[determineSize(m, k, ldA, trA)]);
                 std::unique_ptr<DB_TYPE[]> B(
-                        new DB_TYPE[determineSize(k, n, ldB, transB)]);
+                        new DB_TYPE[determineSize(k, n, ldB, trB)]);
                 std::unique_ptr<int32_t[]> C(
                         new int32_t[determineSize(m, n, ldC)]);
 

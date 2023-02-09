@@ -53,7 +53,7 @@ int64_t determineLd(int m, int n, int ld, bool trans = false) {
 }
 
 template <bool LastIndexFast = ISLASTINDEX_FAST>
-int64_t determineSize(int m, int n, int ld, bool trans = false) {
+inline int64_t determineSize(int m, int n, int ld, bool trans = false) {
     if (LastIndexFast) {
         return trans ? (std::max(m, ld) * n) : (std::max(n, ld) * m);
     } else {
@@ -68,7 +68,11 @@ struct matrix_ptr_t {
 
     matrix_ptr_t(T *a, int64_t m, int64_t n, int64_t ld, bool trans = false)
         : a {a} {
-        this->ld = determineLd<LastIndexFast>(m, n, ld, trans);
+        if (LastIndexFast) {
+        this->ld = trans ? std::max(m, ld) : std::max(n, ld);
+    } else {
+        this->ld= trans ? std::max(n, ld) : std::max(m, ld);
+    }
     }
 
     T *ptr(int64_t i, int64_t j) {
@@ -217,8 +221,8 @@ void showMatrix(int64_t R, int64_t C, const T *M, int64_t LD,
 
     auto Mptr = matrix_ptr_t<const T> {M, R, C, LD, trans};
 
-    std::cout << "\n#----------\n" << name << "=np.array([\n";
-    for (int r = r; r < R; r++) {
+    std::cout << "\n#-----"<<R<<";"<<C<<"-----\n" << name << "=np.array([\n";
+    for (int r = 0; r < R; r++) {
         std::cout << "[ ";
         for (int c = 0; c < C; c++) {
             std::cout << std::setfill(' ') << std::setw(3)

@@ -25,77 +25,79 @@ enum class offset_type {
     row,
 };
 
+
 __attribute__((noinline)) void addResults(offset_type offsetType, dim_t m,
-        dim_t n, double alpha, double beta, int32_t *__restrict__ C, dim_t ldC,
-        uint32_t *__restrict__ Ctemp, dim_t ldCtemp,
-        const int32_t *__restrict__ co) {
+        dim_t n, double alpha, double beta, int32_t *__restrict C, dim_t ldC,
+        int32_t *__restrict Ctemp, dim_t ldCtemp,
+        const int32_t *__restrict co) {
 
     if (offsetType == offset_type::fixed) {
         if (beta == 0) {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[0];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i] + co[0];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
-        } else if (beta != 1) {
+        } else {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     double val = beta * (double)gPtr(i, j)
-                            + alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[0];
+                            + alpha * (double)Ctemp[j * ldCtemp + i] + co[0];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
         }
     } else if (offsetType == offset_type::column) {
         if (beta == 0) {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[j];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i] + co[i];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
-        } else if (beta != 1) {
+        } else {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     double val = beta * (double)gPtr(i, j)
-                            + alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[j];
+                            + alpha * (double)Ctemp[j * ldCtemp + i] + co[i];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
         }
 
     } else if (offsetType == offset_type::row) {
         if (beta == 0) {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
-                    double val = alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[i];
+                    double val = alpha * (double)Ctemp[j * ldCtemp + i] + co[j];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
-        } else if (beta != 1) {
+        } else {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     double val = beta * (double)gPtr(i, j)
-                            + alpha * (double)Ctemp[j * ldCtemp + i];
-                    gPtr(i, j) = static_cast<int32_t>(nearbyint(
-                                         saturate<int32_t, double>(val)))
-                            + co[i];
+                            + alpha * (double)Ctemp[j * ldCtemp + i] + co[j];
+                    gPtr(i, j) = static_cast<int32_t>(
+                            nearbyint(saturate<int32_t, double>(val)));
                 }
             }
         }
     } else {
         if (beta == 0) {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     gPtr(i, j) = static_cast<int32_t>(
@@ -103,7 +105,8 @@ __attribute__((noinline)) void addResults(offset_type offsetType, dim_t m,
                                     alpha * (double)Ctemp[j * ldCtemp + i])));
                 }
             }
-        } else if (beta != 1) {
+        } else {
+
             for (dim_t j = 0; j < n; j++) {
                 for (dim_t i = 0; i < m; i++) {
                     double val = beta * (double)gPtr(i, j)
@@ -115,6 +118,7 @@ __attribute__((noinline)) void addResults(offset_type offsetType, dim_t m,
         }
     }
 }
+
 
 template <typename TA, typename TB>
 inline void LoopKC(bool transA, bool transB, dim_t m, dim_t n, dim_t k,
@@ -159,8 +163,9 @@ inline void LoopMC(offset_type offsetType, bool transA, bool transB, dim_t m,
         LoopKC(transA, transB, ib, n, k, transA ? &aPtr(0, i) : &aPtr(i, 0),
                 ldA, B, ldB, Ctemp, ib, Apacked, Bpacked);
 
+        auto localCo = (offsetType == offset_type::column) ? &co[i] : co;
         addResults(offsetType, ib, n, (double)alpha, (double)beta, &gPtr(i, 0),
-                ldC, Ctemp, ib, co);
+                ldC, Ctemp, ib, localCo);
     }
 }
 
@@ -203,9 +208,10 @@ inline void LoopNC(offset_type offsetType, bool transA, bool transB, dim_t m,
 
         dim_t jb = std::min(
                 NC, n - j); /* Last loop may not involve a full block */
+        auto localCo = (offsetType == offset_type::row) ? &co[j] : co;
         LoopMC(offsetType, transA, transB, m, jb, k, alpha, A, ldA, ao,
                 transB ? &bPtr(j, 0) : &bPtr(0, j), ldB, bo, beta, &gPtr(0, j),
-                ldC, AP, BP, CP, mC, co);
+                ldC, AP, BP, CP, mC, localCo);
     }
 
     free(Apack);

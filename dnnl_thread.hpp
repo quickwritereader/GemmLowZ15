@@ -20,8 +20,13 @@
 #include <functional>
 #include <mutex>
 #include <stdio.h>
+#define DNNL_RUNTIME_IGNORE 0
+
 #define DNNL_RUNTIME_SEQ 1
 #define DNNL_RUNTIME_OMP 2
+
+#if DNNL_CPU_THREADING_RUNTIME != DNNL_RUNTIME_IGNORE
+
 #if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_SEQ
 #pragma GCC diagnostic warning "----DNNL_RUNTIME_SEQ-----"
 #define DNNL_THR_SYNC 1
@@ -500,5 +505,7 @@ void parallel_nd_in_omp(Args &&... args) {
 
 } // namespace impl
 } // namespace dnnl
+
+#endif
 
 #endif
